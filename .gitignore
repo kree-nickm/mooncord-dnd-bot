@@ -60,5 +60,6 @@ typings/
 # next.js build output
 .next
 
-# the config file with secret data
+# the config files with secret data
 config.json
+credentials.json
