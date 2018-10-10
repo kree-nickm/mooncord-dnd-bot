@@ -31,6 +31,7 @@ client.on("message", (message) => {
 		let command = args.shift().toLowerCase();
 		if(command == "dnd" && (message.channel.type == "dm" || config.channel_ids.indexOf(message.channel.id) != -1))
 		{
+			// TODO: Make all of the following responses direct messages (I think).
 			let param1 = args.length ? args.shift().toLowerCase() : "";
 			let is_admin = Array.isArray(config.admin_ids) && config.admin_ids.indexOf(message.author.id) != -1;
 			// TODO: Determine if someone who sends a direct message has the dungeon master role.
