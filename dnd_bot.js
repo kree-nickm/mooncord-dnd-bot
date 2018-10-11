@@ -34,38 +34,47 @@ client.on("ready", () => {
 		if(guild == null)
 			console.warn("This bot does not appear to be a member of the specified Mooncord guild.");
 		else
-			console.warn("Using guild: "+ guild.name);
+			console.log("Using guild: "+ guild.name);
 	}
-	doc.useServiceAccountAuth(creds, function(err){
-		if(err == null)
-			console.log("Logged into Google Drive.");
-		doc.getInfo(function(err,info){
-			for(var i in info.worksheets)
-			{
-				//console.log("Sheet found: ", info.worksheets[i]);
-				if(info.worksheets[i].id == config.sheet_id)
+	if(doc == null)
+		console.error("Google Sheet not specified in config.json or is invalid; specify the identifier of the Google Sheet containing applications with the 'google_sheet' property.");
+	else if(config.sheet_id == null)
+		console.error("Worksheet identifier not specified in config.json; specify the identifier of the worksheet tab containing applications with the 'sheet_id' property.");
+	else if(config.handle_column == null)
+		console.error("Handle column identifier not specified in config.json; specify the identifier of the column containing Discord handles with the 'handle_column' property.");
+	else
+	{
+		doc.useServiceAccountAuth(creds, function(err){
+			if(err == null)
+				console.log("Logged into Google Drive.");
+			doc.getInfo(function(err,info){
+				//console.log(info.worksheets);
+				for(var i in info.worksheets)
 				{
-					sheet = info.worksheets[i];
-					console.log("Application list found.");
-					break;
-				}
-			}
-			if(sheet == null)
-				console.error("Application list was NOT found.");
-			else
-			{
-				sheet.getRows({orderby:config.handle_column}, function(err,info){
-					if(err != null)
-						console.warn("Error when trying to read list of applications: ", err);
-					else
+					if(info.worksheets[i].id == config.sheet_id)
 					{
-						all_apps = info;
-						console.log("Application list read into memory.");
+						sheet = info.worksheets[i];
+						console.log("Application list found.");
+						break;
 					}
-				});
-			}
+				}
+				if(sheet == null)
+					console.error("Application list was NOT found. Ensure the 'sheet_id' property is correctly set to the identifier of the applications' worksheet tab in config.json.");
+				else
+				{
+					sheet.getRows({orderby:config.handle_column}, function(err,info){
+						if(err != null)
+							console.warn("Error when trying to read list of applications: ", err);
+						else
+						{
+							all_apps = info;
+							console.log("Application list read into memory.");
+						}
+					});
+				}
+			});
 		});
-	});
+	}
 	console.log("Mooncord D&D bot active.");
 });
 
@@ -74,7 +83,7 @@ client.on("message", (message) => {
 	{
 		if(message.author.bot || !message.content.startsWith(config.prefix))
 			return;
-		console.log(message);
+		//console.log(message);
 		
 		let args = message.content.slice(config.prefix.length).trim().split(/ +/g);
 		let command = args.shift().toLowerCase();
@@ -182,7 +191,8 @@ else if(!Array.isArray(config.channel_ids))
 	console.error("Channel IDs not specified in config.json; specify the valid channels by listing their IDs in an array with the 'channel_ids' property.");
 else
 {
-	var doc = new GoogleSpreadsheet(config.google_sheet);
+	if(config.google_sheet != null)
+		var doc = new GoogleSpreadsheet(config.google_sheet);
 	client.login(config.token);
 }
 
