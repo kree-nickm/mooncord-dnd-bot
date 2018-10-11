@@ -25,7 +25,7 @@ Approved hosts will have access to the actual Mooncord bot via the `config.json`
 4. The bot should now be shown in the user list of your server/guild.
 
 #### Accessing a Google Spreadsheet
-Approved hosts will have access to the actual application list via the `config.json` file they should be provided. Otherwise, if you want to test changes that you make to the bot's ability to read spreadsheets, you'll need to setup your own Google Spreadsheet and allow the bot to access it.
+Approved hosts will have access to the actual application list via the `config.json` file they should be provided. Otherwise, if you want to test changes that you make to the bot's ability to read spreadsheets, you'll need to setup your own Google Spreadsheet and [allow the bot to access it](https://www.npmjs.com/package/google-spreadsheet#authentication). The JSON key file mentioned by the linked guide needs to be named `credentials.json` and placed in the same directory as the bot.
 
 #### config.json
 Once the bot is in your desired server/guild and you have installed the files to your system as described above, you now need to set up the `config.json` file, assuming you have not already been provided with it. This file contains private information that allows you to connect to the bot as well as the application list. The official file is only given to approved hosts, but you can make your own for testing purposes. If you plan on developing a Discord bot, you should be familiar with JavaScript, and the proceeding instructions will assume as much.
