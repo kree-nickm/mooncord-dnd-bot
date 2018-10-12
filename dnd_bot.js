@@ -17,11 +17,123 @@ config.json should be saved in the same directory as this file and contain somet
 	"handle_column": "discordhandlecolumnheader"
 }
 */
-var sheet;
-var all_apps;
 var guild;
 
-client.on("ready", () => {
+function GoogleSheetsApplications(spreadsheet_id, worksheet_id, handle_column, credentials)
+{
+	this.spreadsheet_id = spreadsheet_id;
+	this.worksheet_id = worksheet_id;
+	this.handle_column = handle_column;
+	this.doc;
+	this.sheet;
+	this.all_apps;
+	this.loadApplications = function(callback)
+	{
+		if(this.sheet == null)
+		{
+			console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m Cannot load application list because the worksheet was never loaded.");
+			if(typeof(callback) == "function")
+				callback(false);
+		}
+		else
+		{
+			this.sheet.getRows({orderby:this.handle_column}, (function(err,info){
+				if(err != null)
+				{
+					console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m Unable to read list of applications: ", err);
+					if(typeof(callback) == "function")
+						callback(false);
+				}
+				else if(!Array.isArray(info) || !info.length)
+				{
+					console.warn("\x1b[1mGoogleSheetsApplications Warning:\x1b[0m No applications found.");
+					if(typeof(callback) == "function")
+						callback(false);
+				}
+				else if(info[0][this.handle_column] == null)
+				{
+					console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m Invalid column specified for Discord handles: \x1b[1m%s\x1b[0m", this.handle_column);
+					if(typeof(callback) == "function")
+						callback(false);
+				}
+				else
+				{
+					this.all_apps = info;
+					console.log("GoogleSheetsApplications: Application list successfully read into memory.");
+					if(typeof(callback) == "function")
+						callback(true);
+				}
+			}).bind(this));
+		}
+	};
+	this.findAppByHandle = function(handle, rowSet)
+	{
+		if(rowSet == null)
+			rowSet = this.all_apps;
+		if(rowSet == null)
+			return false;
+		if(rowSet.length == 0)
+			return false;
+		var i = Math.floor(rowSet.length/2);
+		var comp = handle.toLowerCase().localeCompare(rowSet[i][this.handle_column].toLowerCase());
+		if(comp < 0)
+			return this.findAppByHandle(handle, rowSet.slice(0, i));
+		else if(comp > 0)
+			return this.findAppByHandle(handle, rowSet.slice(i, rowSet.length));
+		else
+			return rowSet[i];
+	};
+	
+	if(this.spreadsheet_id == null)
+		console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m No Google Sheets identifier specified.");
+	else if(this.worksheet_id == null)
+		console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m No worksheet identifier specified.");
+	else if(this.handle_column == null)
+		console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m No handle column identifier specified.");
+	else if(credentials == null || typeof(credentials) != "object")
+		console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m No credentials specified.");
+	else
+	{
+		this.doc = new GoogleSpreadsheet(this.spreadsheet_id);
+		this.doc.useServiceAccountAuth(credentials, (function(err){
+			if(err != null)
+				console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m Unable to authenticate with Google Sheets due to invalid credentials. %s", err.message);
+			else
+			{
+				this.doc.getInfo((function(err,info){
+					if(err != null)
+						console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m Unable to fetch data from Google Sheet: \x1b[1m%s\x1b[0m; Sheet ID or credentials may be invalid.\n\x1b[1m--- BEGIN ERROR RESPONSE ---\x1b[0m\n%s\n\x1b[1m--- END ERROR RESPONSE ---\x1b[0m", this.spreadsheet_id, err);
+					else
+					{
+						//console.log(info.worksheets);
+						this.sheet = null;
+						for(var i in info.worksheets)
+						{
+							if(info.worksheets[i].id == this.worksheet_id)
+							{
+								this.sheet = info.worksheets[i];
+								console.log("GoogleSheetsApplications: Application list found.");
+								break;
+							}
+						}
+						if(this.sheet == null)
+						{
+							console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m Application list was not found using worksheet ID: \x1b[1m%s\x1b[0m", this.worksheet_id);
+						}
+						else
+						{
+							this.loadApplications();
+						}
+					}
+				}).bind(this));
+			}
+		}).bind(this));
+	}
+}
+const appList = new GoogleSheetsApplications(config.google_sheet, config.sheet_id, config.handle_column, creds);
+
+client.on("ready", function()
+{
 	if(!Array.isArray(config.admin_ids))
 		console.warn("Admin IDs not specified in config.json; specify the admins by listing their IDs in an array with the 'admin_ids' property.");
 	if(config.dm_role_id == null)
@@ -36,55 +148,18 @@ client.on("ready", () => {
 		else
 			console.log("Using guild: "+ guild.name);
 	}
-	if(doc == null)
-		console.error("Google Sheet not specified in config.json or is invalid; specify the identifier of the Google Sheet containing applications with the 'google_sheet' property.");
-	else if(config.sheet_id == null)
-		console.error("Worksheet identifier not specified in config.json; specify the identifier of the worksheet tab containing applications with the 'sheet_id' property.");
-	else if(config.handle_column == null)
-		console.error("Handle column identifier not specified in config.json; specify the identifier of the column containing Discord handles with the 'handle_column' property.");
-	else
-	{
-		doc.useServiceAccountAuth(creds, function(err){
-			if(err == null)
-				console.log("Logged into Google Drive.");
-			doc.getInfo(function(err,info){
-				//console.log(info.worksheets);
-				for(var i in info.worksheets)
-				{
-					if(info.worksheets[i].id == config.sheet_id)
-					{
-						sheet = info.worksheets[i];
-						console.log("Application list found.");
-						break;
-					}
-				}
-				if(sheet == null)
-					console.error("Application list was NOT found. Ensure the 'sheet_id' property is correctly set to the identifier of the applications' worksheet tab in config.json.");
-				else
-				{
-					sheet.getRows({orderby:config.handle_column}, function(err,info){
-						if(err != null)
-							console.warn("Error when trying to read list of applications: ", err);
-						else
-						{
-							all_apps = info;
-							console.log("Application list read into memory.");
-						}
-					});
-				}
-			});
-		});
-	}
 	console.log("Mooncord D&D bot active.");
 });
 
-client.on("message", (message) => {
+client.on("message", function(message)
+{
 	try
 	{
 		if(message.author.bot || !message.content.startsWith(config.prefix))
 			return;
-		//console.log(message);
-		
+		console.log(message);
+		// TODO: Emote codes below, but they might not work on a bot. If not, edit all the replies to get rid of them.
+		// <:moon2T:284219508615413761> <:moon2S:496519208549613568> <:moon2N:497606808542642176> <:moon2PH:482219761699389450> <:moon2A:430810259620364309>
 		let args = message.content.slice(config.prefix.length).trim().split(/ +/g);
 		let command = args.shift().toLowerCase();
 		if(command == "dnd" && (message.channel.type == "dm" || config.channel_ids.indexOf(message.channel.id) != -1))
@@ -99,65 +174,52 @@ client.on("message", (message) => {
 			let is_dm = member != null && Array.isArray(member._roles) && member._roles.indexOf(config.dm_role_id) != -1;
 			if(param1 == "app")
 			{
-				if(Array.isArray(all_apps))
+				if(Array.isArray(appList.all_apps))
 				{
 					if((is_dm || is_admin) && message.mentions.users.size)
 					{
+						var targetid = message.mentions.users.first().id;
 						var handle = message.mentions.users.first().username +"#"+ message.mentions.users.first().discriminator
 						var myself = false;
 					}
 					else
 					{
+						var targetid = message.author.id;
 						var handle = message.author.username +"#"+ message.author.discriminator
 						var myself = true;
 					}
-					var app = findAppByHandle(handle, all_apps);
+					var app = appList.findAppByHandle(handle);
 					if(app != false)
 					{
 						if(myself)
-							message.reply("Your application has been found. It looks like you submitted it on "+ app.timestamp);
+							message.reply("Your application has been found. It looks like you submitted it on "+ app.timestamp +" <:moon2S:496519208549613568>");
 						else
-							message.reply("An application was found for @"+ handle +" submitted on "+ app.timestamp);
+							message.reply("An application was found for <@"+ targetid +"> submitted on "+ app.timestamp +" <:moon2S:496519208549613568>");
 						//console.log(app);
 					}
 					else
 					{
 						if(myself)
-							message.reply("No application found for @"+ handle +".");
+							message.reply("No application found for <@"+ targetid +">. <:moon2N:497606808542642176>");
 						else
-							message.reply("There doesn't seem to be an application for you. Head to https://goo.gl/forms/vLASDQVIjfGVMfTS2 to fill one out.");
+							message.reply("There doesn't seem to be an application for you. <:moon2N:497606808542642176> Head to https://goo.gl/forms/vLASDQVIjfGVMfTS2 to fill one out. <:moon2S:496519208549613568>");
 					}
 				}
 				else
 				{
 					console.warn("Application list is not loaded for some reason.");
-					message.reply("I'm unable to access the list of applications right now. Ask a DM to !dnd refresh and that might fix it. :(");
+					message.reply("I'm unable to access the list of applications right now. Ask a DM to !dnd refresh and that might fix it. <:moon2N:497606808542642176>");
 				}
 			}
 			else if((is_dm || is_admin) && param1 == "refresh")
 			{
 				// Example of a DM-only command (admins can use them as well).
-				if(sheet != null)
-				{
-					sheet.getRows({orderby:config.handle_column}, function(err,info){
-						if(err != null)
-						{
-							message.reply("There was a problem when I tried to fetch the applications. :(");
-							console.warn("Error when trying to read list of applications: ", err);
-						}
-						else
-						{
-							all_apps = info;
-							message.reply("I've now memorized the current list of applications. :)");
-							console.log("Application list read into memory via DM command.");
-						}
-					});
-				}
-				else
-				{
-					message.reply("I'm unable to access the list of applications right now. :(");
-					console.error("Application list was NOT found (triggered by command).");
-				}
+				appList.loadApplications(function(success){
+					if(success)
+						message.reply("I've now memorized the current list of applications. <:moon2S:496519208549613568>");
+					else
+						message.reply("There was a problem when I tried to fetch the applications. <:moon2N:497606808542642176>");
+				});
 			}
 			else if(is_admin && param1 == "reloadconfig")
 			{
@@ -167,13 +229,13 @@ client.on("message", (message) => {
 					delete config[i];
 				for(var i in temp)
 					config[i] = temp[i];
-				message.reply("'config.json' has been reloaded.");
+				message.reply("'config.json' has been reloaded. <:moon2N:497606808542642176>");
 				console.log("config.json reloaded via admin command.");
 			}
 			else
 			{
 				// Default response to any !dnd message that isn't covered above.
-				message.reply("To submit an application to join a D&D game, go to https://goo.gl/forms/vLASDQVIjfGVMfTS2 and fill out the form. :)");
+				message.reply("To submit an application to join a D&D game, go to https://goo.gl/forms/vLASDQVIjfGVMfTS2 and fill out the form. <:moon2S:496519208549613568>");
 			}
 		}
 	}
@@ -190,24 +252,4 @@ else if(config.prefix == null)
 else if(!Array.isArray(config.channel_ids))
 	console.error("Channel IDs not specified in config.json; specify the valid channels by listing their IDs in an array with the 'channel_ids' property.");
 else
-{
-	if(config.google_sheet != null)
-		var doc = new GoogleSpreadsheet(config.google_sheet);
 	client.login(config.token);
-}
-
-function findAppByHandle(handle, rowSet)
-{
-	if(rowSet.length == 0)
-		return false;
-	var i = Math.floor(rowSet.length/2);
-	var comp = handle.toLowerCase().localeCompare(rowSet[i][config.handle_column].toLowerCase());
-	if(comp < 0)
-		return findAppByHandle(handle, rowSet.slice(0, i));
-	else if(comp > 0)
-		return findAppByHandle(handle, rowSet.slice(i, rowSet.length));
-	else
-	{
-		return rowSet[i];
-	}
-}
