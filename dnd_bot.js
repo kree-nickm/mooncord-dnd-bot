@@ -1,9 +1,6 @@
-// ------------- Requirements -------------
+// ------------- Initialization -------------
 const Discord = require("discord.js");
-const GoogleSheetsApplications = require('./GoogleSheetsApplications.js');
-const MySQLApplications = require('./MySQLApplications.js');
-const config = require("./config.json");
-/*
+const config = require("./config.json");/*
 config.json should be saved in the same directory as this file and contain something like this:
 {
 	"token": "application-bot-secret-token",
@@ -14,11 +11,15 @@ config.json should be saved in the same directory as this file and contain somet
 	"dm_role_id": "##################",
 	"google_sheet": "google-spreadsheet-id",
 	"sheet_id": "worksheet-id",
-	"handle_column": "discordhandlecolumnheader"
+	"handle_column": "discordhandlecolumnheader",
+	"mysql_host": "hostname.or.ip",
+	"mysql_user": "username",
+	"mysql_pass": "password",
+	"mysql_db": "database",
+	"mysql_table": "table_with_apps",
+	"mysql_column": "column_with_Discord_handle"
 }
 */
-
-// ------------- Initialization -------------
 if(typeof(config) != "object")
 {
 	console.error("\x1b[41mFatal Error:\x1b[0m config.json is not loaded.");
@@ -36,7 +37,11 @@ else if(config.prefix == null)
 }
 const client = new Discord.Client();
 client.login(config.token);
+/* Uncomment these 2 lines to use Google Sheets API (and comment out the MySQL lines) */
+const GoogleSheetsApplications = require('./GoogleSheetsApplications.js');
 const appList = new GoogleSheetsApplications(config.google_sheet, config.sheet_id, config.handle_column);
+/* Uncomment these 2 lines to use MySQL (and comment out the Google Sheets API lines) */
+//const MySQLApplications = require('./MySQLApplications.js');
 //const appList = new MySQLApplications(config.mysql_host, config.mysql_user, config.mysql_pass, config.mysql_db, config.mysql_table, config.mysql_column);
 
 // ------------- Events -------------
@@ -83,9 +88,9 @@ client.on("warn", (e) => console.warn("\x1b[1mWarning:\x1b[0m %s", e));
 //client.on("debug", (e) => console.info("\x1b[37m%s\x1b[0m", e));
 
 // ------------- The Work -------------
-// The rate limit for commands. The bot will not respond faster than this unless it is a dungeon master or an admin making the command.
+// The rate limit for commands (milliseconds). The bot will not respond faster than this unless it is a dungeon master or an admin making the command.
 var command_frequency = {
-	global: 1000, // This applies to all of this bot's messages everywhere. Ex. if two different people send whispered commands within this period, the second will be ignored.
+	global: 1000, // This applies to all of this bot's messages everywhere. Ex. if two different people send commands, even in whisper, within this period, the second will be ignored.
 	perUser: 5000, // This applies to an individual person's commands.
 	perChannel: 30000, // This applies to individual channels. Though only DM commands go to the channel, which bypass the limit, so maybe this is useless.
 };
@@ -101,7 +106,7 @@ function process_command(message, args, member)
 	var is_admin = Array.isArray(config.admin_ids) && config.admin_ids.indexOf(message.author.id) != -1;
 	var is_dm = member != null && Array.isArray(member._roles) && member._roles.indexOf(config.dm_role_id) != -1;
 	if(!(is_dm || is_admin))
-	{	// Yeah I know this doesn't need to be split up if statements, but it's way easier to read this way.
+	{	// Yeah I know this doesn't need to be split up 'if' statements, but it's way easier to read this way.
 		if(last_command.global != null && ((new Date())-last_command.global) < command_frequency.global)
 			return;
 		if(last_command.user[message.author.id] != null && ((new Date())-last_command.user[message.author.id]) < command_frequency.perUser)
