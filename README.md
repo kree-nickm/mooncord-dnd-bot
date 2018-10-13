@@ -5,7 +5,8 @@ This bot is to assist members of MOONMOON_OW's subscriber Discord with joining M
 The bot understands the following commands:
 * `!dnd` Directs the caller to the Mooncord D&D application form.
 * `!dnd app` Checks on the status of the caller's D&D application. Dungeon masters can tag a user in this command to retreive the same information.
-* `!dnd refresh` __DMs Only.__ This will refresh the application list. Any new apps submitted in between calls to this command won't be recognized. Unfortunately this is necessary with the current API to save time and bandwidth.
+* `!dnd lastrefresh` Displays the last time that the application list was refreshed.
+* `!dnd refresh` __DMs Only.__ Will refresh the application list. Any new apps submitted in between calls to this command won't be recognized. Unfortunately this is necessary with the current API to save time and bandwidth, however, this command will be run every hour on its own.
 
 ## For Developers and Hosts
 If you wish to host or develop this bot, follow the installation steps below, then the steps for the appropriate section.
