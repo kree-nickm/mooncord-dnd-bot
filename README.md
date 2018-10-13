@@ -6,8 +6,6 @@ The bot understands the following commands:
 * `!dnd` Directs the caller to the Mooncord D&D application form.
 * `!dnd app` Checks on the status of the caller's D&D application. Dungeon masters can tag a user in this command to retreive the same information.
 
-Most commands will work via direct message, but the bot can't currently verify if you are a dungeon master via direct message, so those commands will not.
-
 ## For Developers and Hosts
 If you wish to host or develop this bot, follow the installation steps below, then the steps for the appropriate section.
 
