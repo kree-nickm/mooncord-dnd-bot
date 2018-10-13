@@ -1,12 +1,13 @@
+// Requirements
 const Discord = require("discord.js");
-const config = require("./config.json");
 const Applications = require('./GoogleSheetsApplications.js');
+const config = require("./config.json");
 /*
 config.json should be saved in the same directory as this file and contain something like this:
 {
 	"token": "application-bot-secret-token",
 	"prefix": "!",
-	"guild_id": "##################",
+	"guild_id": "193277318494420992",
 	"channel_ids": ["##################","##################"],
 	"admin_ids": ["##################","##################"],
 	"dm_role_id": "##################",
@@ -15,23 +16,44 @@ config.json should be saved in the same directory as this file and contain somet
 	"handle_column": "discordhandlecolumnheader"
 }
 */
+
+// Initialization
+if(typeof(config) != "object")
+{
+	console.error("\x1b[41mFatal Error:\x1b[0m config.json is not loaded.");
+	return false;
+}
+else if(config.token == null)
+{
+	console.error("\x1b[41mFatal Error:\x1b[0m Bot token not specified in config.json; specify the token with the 'token' property.");
+	return false;
+}
+else if(config.prefix == null)
+{
+	console.error("\x1b[41mFatal Error:\x1b[0m Prefix not specified in config.json; specify the prefix with the 'prefix' property.");
+	return false;
+}
 const client = new Discord.Client();
+client.login(config.token);
 const appList = new Applications(config.google_sheet, config.sheet_id, config.handle_column);
 
+// Events
 var guild;
 client.on("ready", function()
 {
+	if(!Array.isArray(config.channel_ids))
+		console.warn("\x1b[1mWarning:\x1b[0m Channel IDs not specified in config.json; specify the valid channels by listing their IDs in an array with the 'channel_ids' property. Without this, the bot will only be able to respond to direct messages.");
 	if(!Array.isArray(config.admin_ids))
-		console.warn("Admin IDs not specified in config.json; specify the admins by listing their IDs in an array with the 'admin_ids' property.");
+		console.warn("\x1b[1mWarning:\x1b[0m Admin IDs not specified in config.json; specify the admins by listing their IDs in an array with the 'admin_ids' property. Without this, the bot will not be able to identify admins.");
 	if(config.dm_role_id == null)
-		console.warn("DM role ID not specified in config.json; specify the ID of the DM role with the 'dm_role_id' property.");
+		console.warn("\x1b[1mWarning:\x1b[0m DM role ID not specified in config.json; specify the ID of the DM role with the 'dm_role_id' property. Without this, the bot will not be able to identify dungeon masters.");
 	if(config.guild_id == null)
-		console.warn("Guild ID not specified in config.json; specify the ID of the Mooncord guild with the 'guild_id' property.");
+		console.warn("\x1b[1mWarning:\x1b[0m Guild ID not specified in config.json; specify the ID of the Mooncord guild with the 'guild_id' property. Without this, the bot will not be able to identify dungeon masters if a command is sent in a direct message.");
 	else
 	{
 		guild = client.guilds.get(config.guild_id);
 		if(guild == null)
-			console.warn("This bot does not appear to be a member of the specified Mooncord guild.");
+			console.warn("\x1b[1mWarning:\x1b[0m This bot does not appear to be a member of the specified Mooncord guild. Without this, the bot will not be able to identify dungeon masters if a command is sent in a direct message.");
 		else
 			console.log("Using guild: "+ guild.name);
 	}
@@ -61,7 +83,7 @@ client.on("message", function(message)
 			let is_dm = member != null && Array.isArray(member._roles) && member._roles.indexOf(config.dm_role_id) != -1;
 			if(param1 == "app")
 			{
-				if(Array.isArray(appList.all_apps))
+				if(appList.ready)
 				{
 					if((is_dm || is_admin) && message.mentions.users.size)
 					{
@@ -79,7 +101,7 @@ client.on("message", function(message)
 					if(app != false)
 					{
 						if(myself)
-							message.reply("Your application has been found. It looks like you submitted it on "+ app.timestamp +" <:moon2S:496519208549613568>");
+							message.author.send("Your application has been found. It looks like you submitted it on "+ app.timestamp +" <:moon2S:496519208549613568>");
 						else
 							message.reply("An application was found for <@"+ targetid +"> submitted on "+ app.timestamp +" <:moon2S:496519208549613568>");
 						//console.log(app);
@@ -87,25 +109,26 @@ client.on("message", function(message)
 					else
 					{
 						if(myself)
-							message.reply("No application found for <@"+ targetid +">. <:moon2N:497606808542642176>");
+							message.author.send("There doesn't seem to be an application for you. <:moon2N:497606808542642176> Head to https://goo.gl/forms/vLASDQVIjfGVMfTS2 to fill one out. <:moon2S:496519208549613568>");
 						else
-							message.reply("There doesn't seem to be an application for you. <:moon2N:497606808542642176> Head to https://goo.gl/forms/vLASDQVIjfGVMfTS2 to fill one out. <:moon2S:496519208549613568>");
+							message.reply("No application found for <@"+ targetid +">. <:moon2N:497606808542642176>");
 					}
 				}
 				else
 				{
 					console.warn("Application list is not loaded for some reason.");
-					message.reply("I'm unable to access the list of applications right now. Ask a DM to !dnd refresh and that might fix it. <:moon2N:497606808542642176>");
+					message.reply("I'm unable to access the list of applications right now. <:moon2PH:482219761699389450> Ask a DM to !dnd refresh and that might fix it.");
 				}
 			}
 			else if((is_dm || is_admin) && param1 == "refresh")
 			{
 				// Example of a DM-only command (admins can use them as well).
+				// TODO: This is probably only relavent for Google Sheets applications; I don't think MySQL will ever need to refresh. But we'll see.
 				appList.loadApplications(function(success){
 					if(success)
-						message.reply("I've now memorized the current list of applications. <:moon2S:496519208549613568>");
+						message.author.send("I've now memorized the current list of applications. <:moon2S:496519208549613568>");
 					else
-						message.reply("There was a problem when I tried to fetch the applications. <:moon2N:497606808542642176>");
+						message.author.send("There was a problem when I tried to fetch the applications. <:moon2N:497606808542642176>");
 				});
 			}
 			else if(is_admin && param1 == "reloadconfig")
@@ -116,13 +139,16 @@ client.on("message", function(message)
 					delete config[i];
 				for(var i in temp)
 					config[i] = temp[i];
-				message.reply("'config.json' has been reloaded. <:moon2N:497606808542642176>");
+				message.author.send("'config.json' has been reloaded. <:moon2N:497606808542642176>");
 				console.log("config.json reloaded via admin command.");
 			}
 			else
 			{
 				// Default response to any !dnd message that isn't covered above.
-				message.reply("To submit an application to join a D&D game, go to https://goo.gl/forms/vLASDQVIjfGVMfTS2 and fill out the form. <:moon2S:496519208549613568>");
+				if(is_dm || is_admin)
+					message.reply("To submit an application to join a D&D game, go to https://goo.gl/forms/vLASDQVIjfGVMfTS2 and fill out the form. <:moon2S:496519208549613568>");
+				else
+					message.author.send("To submit an application to join a D&D game, go to https://goo.gl/forms/vLASDQVIjfGVMfTS2 and fill out the form. <:moon2S:496519208549613568>");
 			}
 		}
 	}
@@ -131,12 +157,6 @@ client.on("message", function(message)
 		console.error(x);
 	}
 });
-
-if(config.token == null)
-	console.error("Bot token not specified in config.json; specify the token with the 'token' property.");
-else if(config.prefix == null)
-	console.error("Prefix not specified in config.json; specify the prefix with the 'prefix' property.");
-else if(!Array.isArray(config.channel_ids))
-	console.error("Channel IDs not specified in config.json; specify the valid channels by listing their IDs in an array with the 'channel_ids' property.");
-else
-	client.login(config.token);
+client.on("error", (e) => console.error("\x1b[31mError:\x1b[0m %s", e));
+client.on("warn", (e) => console.warn("\x1b[1mWarning:\x1b[0m %s", e));
+//client.on("debug", (e) => console.info("\x1b[37m%s\x1b[0m", e));

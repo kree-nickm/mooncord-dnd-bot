@@ -8,6 +8,7 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 	this.doc;
 	this.sheet;
 	this.all_apps;
+	this.ready = false;
 	this.loadApplications = function(callback)
 	{
 		if(this.sheet == null)
@@ -40,6 +41,7 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 				else
 				{
 					this.all_apps = info;
+					this.ready = true;
 					console.log("GoogleSheetsApplications: Application list successfully read into memory.");
 					if(typeof(callback) == "function")
 						callback(true);
@@ -98,13 +100,9 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 							}
 						}
 						if(this.sheet == null)
-						{
 							console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m Application list was not found using worksheet ID: \x1b[1m%s\x1b[0m", this.worksheet_id);
-						}
 						else
-						{
 							this.loadApplications();
-						}
 					}
 				}).bind(this));
 			}
