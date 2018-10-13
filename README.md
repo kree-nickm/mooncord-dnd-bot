@@ -7,6 +7,7 @@ The bot understands the following commands:
 * `!dnd app` Checks on the status of the caller's D&D application. Dungeon masters can tag a user in this command to retreive the same information.
 * `!dnd lastrefresh` Displays the last time that the application list was refreshed.
 * `!dnd refresh` __DMs Only.__ Will refresh the application list. Any new apps submitted in between calls to this command won't be recognized. Unfortunately this is necessary with the current API to save time and bandwidth, however, this command will be run every hour on its own.
+* `!dnd shutdown` __Admins Only.__ Cleanly disconnects the bot from all APIs or other services that it is connected to before ending the process.
 
 ## For Developers and Hosts
 If you wish to host or develop this bot, follow the installation steps below, then the steps for the appropriate section.
@@ -27,7 +28,10 @@ Approved hosts will have access to the actual Mooncord bot via the `config.json`
 4. The bot should now be shown in the user list of your server/guild.
 
 #### Accessing a Google Spreadsheet
-Approved hosts will have access to the actual application list via the `config.json` file they should be provided. Otherwise, if you want to test changes that you make to the bot's ability to read spreadsheets, you'll need to setup your own Google Spreadsheet and [allow the bot to access it](https://www.npmjs.com/package/google-spreadsheet#authentication). The JSON key file mentioned by the linked guide needs to be named `credentials.json` and placed in the same directory as the bot.
+Approved hosts will have access to the actual application list via the `config.json` file they should be provided. Otherwise, if you want to test changes that you make to the bot's ability to read spreadsheets, you'll need to setup your own Google Spreadsheet and [allow the bot to access it](https://www.npmjs.com/package/google-spreadsheet#authentication). The JSON key file mentioned by the linked guide needs to be named `credentials.json` and placed in the same directory as the bot. In addition to a column for Discord handles as defined in `config.json`, there also needs to be a column for the date the app was submitted. That column must be named `timestamp` and be any human-readable date format.
+
+#### Accessing MySQL
+Approved hosts will have access to the actual application list via the `config.json` file they should be provided. Otherwise, if you want to test changes that you make to the bot's ability to read MySQL, you'll need to setup your own database and use its details in a `config.json` of your own. In addition to a column for Discord handles as defined in `config.json`, there also needs to be a column for the date the app was submitted/changed. That column must be named `changed` and be a UNIX timestamp.
 
 #### config.json
 Once the bot is in your desired server/guild and you have installed the files to your system as described above, you now need to set up the `config.json` file, assuming you have not already been provided with it. This file contains private information that allows you to connect to the bot as well as the application list. The official file is only given to approved hosts, but you can make your own for testing purposes. If you plan on developing a Discord bot, you should be familiar with JavaScript, and the proceeding instructions will assume as much.
@@ -41,9 +45,17 @@ Create a file in the same directory as the bot named `config.json`. The content 
 	"channel_ids": ["##################","##################"],
 	"admin_ids": ["##################","##################"],
 	"dm_role_id": "##################",
+	
 	"google_sheet": "google-spreadsheet-id",
 	"sheet_id": "worksheet-id",
-	"handle_column": "discordhandlecolumnheader"
+	"handle_column": "discordhandlecolumnheader",
+	
+	"mysql_host": "ip.or.hostname",
+	"mysql_user": "mysql_user_name",
+	"mysql_pass": "***********",
+	"mysql_db": "mysql_database",
+	"mysql_table": "applications_table",
+	"mysql_column": "column_with_discord_handles"
 }
 ```
 The properties are as follows (any time an ID of something in Discord is mentioned, it is referring to the 18-digit number known as a "snowflake" in the Discord API):
@@ -53,9 +65,12 @@ The properties are as follows (any time an ID of something in Discord is mention
 * `channel_ids`: An array of the IDs of any and all channels in which you want the bot to read and respond to commands.
 * `admin_ids`: An array of user IDs for users who will be recognized as bot admins, preferably including your own Discord user ID. This is technically optional, but without it, you will not be able to use or test any admin-only commands.
 * `dm_role_id`: The role ID that dungeon masters will be assigned. This is optional if you are just testing the bot by yourself, because if the bot recognizes you as an admin, you can use all DM commands without this.
-* `google_sheet`: The identifier of the Google Sheet that contains the list of applications. This is a long string of characters often found in the URL of the Google Sheet, ie. "1IdR7hbgv-t1barrGEj659vyZ3jdbrz1-Thewrwm5vis".
-* `sheet_id`: The identifier of the specific tab of the above Google Sheet that represents the list of applications. This is a shorter string of characters, ie. "onqmyzf".
-* `handle_column`: The column header of the column of the sheet that contains the Discord handle (ie. Name#1234). This should be the text in the header cell, but all lower case and with only letters and number (no spaces etc). For example, if the header cell contains "Discord Handle?", this value should be "discordhandle".
+* `google_sheet`: _Only needed if using Google Sheets API_ The identifier of the Google Sheet that contains the list of applications. This is a long string of characters often found in the URL of the Google Sheet, ie. "1IdR7hbgv-t1barrGEj659vyZ3jdbrz1-Thewrwm5vis".
+* `sheet_id`: _Only needed if using Google Sheets API_ The identifier of the specific tab of the above Google Sheet that represents the list of applications. This is a shorter string of characters, ie. "onqmyzf".
+* `handle_column`: _Only needed if using Google Sheets API_ The column header of the column of the sheet that contains the Discord handle (ie. Name#1234). This should be the text in the header cell, but all lower case and with only letters and number (no spaces etc). For example, if the header cell contains "Discord Handle?", this value should be "discordhandle".
+* `mysql_*`: _Only needed if using MySQL_ Most should be self explanatory.
+* `mysql_table`: _Only needed if using MySQL_ Table of the database that contains all of the applications.
+* `mysql_column`: _Only needed if using MySQL_ Name of the column that contains Discord handles.
 
 Obtaining the above IDs/identifiers in an easy way is unfortunately beyond the scope of this tutorial at this time. You could find the Discord IDs by doing a `console.log(message);` inside of the message event and examining the output. You could find the spreadsheet tab identifiers by doing a `console.log(info.worksheets);` inside the `doc.getInfo` function.
 

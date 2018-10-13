@@ -1,6 +1,7 @@
 // ------------- Requirements -------------
 const Discord = require("discord.js");
-const Applications = require('./GoogleSheetsApplications.js');
+const GoogleSheetsApplications = require('./GoogleSheetsApplications.js');
+const MySQLApplications = require('./MySQLApplications.js');
 const config = require("./config.json");
 /*
 config.json should be saved in the same directory as this file and contain something like this:
@@ -35,7 +36,8 @@ else if(config.prefix == null)
 }
 const client = new Discord.Client();
 client.login(config.token);
-const appList = new Applications(config.google_sheet, config.sheet_id, config.handle_column);
+const appList = new GoogleSheetsApplications(config.google_sheet, config.sheet_id, config.handle_column);
+//const appList = new MySQLApplications(config.mysql_host, config.mysql_user, config.mysql_pass, config.mysql_db, config.mysql_table, config.mysql_column);
 
 // ------------- Events -------------
 var guild;
@@ -64,7 +66,7 @@ client.on("message", function(message)
 {
 	if(message.author.bot || !message.content.startsWith(config.prefix))
 		return;
-	console.log(message);
+	//console.log(message);
 	var args = message.content.substr(config.prefix.length).trim().split(/ +/g);
 	var command = args.shift().toLowerCase();
 	if(command == "dnd" && (message.channel.type == "dm" || config.channel_ids.indexOf(message.channel.id) != -1))
@@ -94,6 +96,10 @@ var last_command = {
 // TODO: Detect if one person is spamming and ban them.
 function process_command(message, args, member)
 {
+	// TODO: Emote codes below, but they might not work on a bot. If not, edit all the replies to get rid of them.
+	// <:moon2T:284219508615413761> <:moon2S:496519208549613568> <:moon2N:497606808542642176> <:moon2PH:482219761699389450> <:moon2A:430810259620364309>
+	var is_admin = Array.isArray(config.admin_ids) && config.admin_ids.indexOf(message.author.id) != -1;
+	var is_dm = member != null && Array.isArray(member._roles) && member._roles.indexOf(config.dm_role_id) != -1;
 	if(!(is_dm || is_admin))
 	{	// Yeah I know this doesn't need to be split up if statements, but it's way easier to read this way.
 		if(last_command.global != null && ((new Date())-last_command.global) < command_frequency.global)
@@ -101,10 +107,6 @@ function process_command(message, args, member)
 		if(last_command.user[message.author.id] != null && ((new Date())-last_command.user[message.author.id]) < command_frequency.perUser)
 			return;
 	}
-	// TODO: Emote codes below, but they might not work on a bot. If not, edit all the replies to get rid of them.
-	// <:moon2T:284219508615413761> <:moon2S:496519208549613568> <:moon2N:497606808542642176> <:moon2PH:482219761699389450> <:moon2A:430810259620364309>
-	var is_admin = Array.isArray(config.admin_ids) && config.admin_ids.indexOf(message.author.id) != -1;
-	var is_dm = member != null && Array.isArray(member._roles) && member._roles.indexOf(config.dm_role_id) != -1;
 	var param1 = args.length ? args.shift().toLowerCase() : "";
 	if(param1 == "app")
 	{
@@ -122,28 +124,36 @@ function process_command(message, args, member)
 				var handle = message.author.username +"#"+ message.author.discriminator
 				var myself = true;
 			}
-			var apps = appList.findAllAppsByHandle(handle);
-			if(apps.length > 1)
-			{
-				if(myself)
-					message.author.send("Woah, "+ apps.length +" applications were found with your Discord handle.");
+			appList.findAllAppsByHandle(handle, (function(apps){
+				if(apps.length > 1)
+				{
+					if(myself)
+						message.author.send("Woah, "+ apps.length +" applications were found with your Discord handle.");
+					else
+						message.reply("Woah, "+ apps.length +" applications were found for <@"+ targetid +">.");
+				}
+				else if(apps.length == 1)
+				{
+					// TODO: These are a little too set in stone.
+					if(apps[0].changed)
+						var time = (new Date(parseInt(apps[0].changed)*1000)).toDateString();
+					else if(apps[0].timestamp)
+						var time = (new Date(apps[0].timestamp)).toDateString();
+					else
+						var time = "... some day";
+					if(myself)
+						message.author.send("Your application has been found. It looks like you submitted it on "+ time +". <:moon2S:496519208549613568>");
+					else
+						message.reply("An application has been found for <@"+ targetid +">. It looks like it was submitted on "+ time +". <:moon2S:496519208549613568>");
+				}
 				else
-					message.reply("Woah, "+ apps.length +" applications were found for <@"+ targetid +">.");
-			}
-			else if(apps.length == 1)
-			{
-				if(myself)
-					message.author.send("Your application has been found. It looks like you submitted it on "+ apps[0].timestamp +". <:moon2S:496519208549613568>");
-				else
-					message.reply("An application has been found for <@"+ targetid +">. It looks like it was submitted on "+ apps[0].timestamp +". <:moon2S:496519208549613568>");
-			}
-			else
-			{
-				if(myself)
-					message.author.send("There doesn't seem to be an application for you. <:moon2N:497606808542642176>");
-				else
-					message.reply("There doesn't seem to be an application for <@"+ targetid +">. <:moon2N:497606808542642176>");
-			}
+				{
+					if(myself)
+						message.author.send("There doesn't seem to be an application for you. <:moon2N:497606808542642176>");
+					else
+						message.reply("There doesn't seem to be an application for <@"+ targetid +">. <:moon2N:497606808542642176>");
+				}
+			}).bind(this));
 		}
 		else
 		{
@@ -161,8 +171,8 @@ function process_command(message, args, member)
 	}
 	else if((is_dm || is_admin) && param1 == "refresh")
 	{
-		// Example of a DM-only command (admins can use them as well).
-		// TODO: This is probably only relavent for Google Sheets applications; I don't think MySQL will ever need to refresh. But we'll see.
+		// TODO: This is probably only relavent for Google Sheets applications; I don't think MySQL will ever need to refresh.
+		// TODO: This code is almost identical to the periodic_refresh() function; they could probably be combined.
 		clearTimeout(refresh_timer);
 		if(typeof(appList.loadApplications) == "function")
 		{
@@ -183,7 +193,6 @@ function process_command(message, args, member)
 	else if(is_admin && param1 == "reloadconfig")
 	{
 		// TODO: Replace this with some commands that modify the values directly rather than just reloading the config.json file on the host computer.
-		// Example of an admin-only command.
 		var temp = require("./config.json");
 		for(var i in config)
 			delete config[i];
@@ -191,6 +200,28 @@ function process_command(message, args, member)
 			config[i] = temp[i];
 		message.author.send("'config.json' has been reloaded. <:moon2N:497606808542642176>");
 		console.log("config.json reloaded via admin command.");
+	}
+	else if(is_admin && param1 == "shutdown")
+	{
+		// This is preferable to just ctrl-C'ing in the console when MySQL is in use, because it explicitly shuts down the connections rather than having them time out eventually.
+		var steps = 0;
+		if(typeof(appList.shutdown) == "function")
+		{
+			appList.shutdown(function(){
+				console.log("MySQL connections terminated by admin command.");
+				steps++;
+				if(steps == 2)
+					process.exit();
+			});
+		}
+		else
+			steps++;
+		client.destroy().then(function(){
+			console.log("Discord client terminated by admin command.");
+			steps++;
+			if(steps == 2)
+				process.exit();
+		});
 	}
 	else
 	{

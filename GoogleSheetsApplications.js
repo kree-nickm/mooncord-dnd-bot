@@ -5,7 +5,7 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 	this.spreadsheet_id = spreadsheet_id;
 	this.worksheet_id = worksheet_id;
 	this.handle_column = handle_column;
-	this.doc;
+	this.doc; // TODO: Not currently used beyond the code that defines it, so doesn't need to be here.
 	this.sheet;
 	this.all_apps;
 	this.ready = false;
@@ -74,7 +74,7 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 		else
 			return false;
 	};
-	this.findAllAppsByHandle = function(handle)
+	this.findAllAppsByHandle = function(handle, callback)
 	{
 		var i = this.findAppIdByHandle(handle);
 		if(i > -1)
@@ -88,10 +88,10 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 				result.push(this.all_apps[i]);
 				i++;
 			}
-			return result;
+			callback(result);
 		}
 		else
-			return [];
+			callback([]);
 	};
 	
 	if(this.spreadsheet_id == null)
