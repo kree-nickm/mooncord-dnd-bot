@@ -1,5 +1,5 @@
-var GoogleSpreadsheet = require('google-spreadsheet');
-var credentials = require("./credentials.json");
+const GoogleSpreadsheet = require('google-spreadsheet');
+const credentials = require("./credentials.json");
 module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 {
 	this.spreadsheet_id = spreadsheet_id;
@@ -42,29 +42,56 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 				{
 					this.all_apps = info;
 					this.ready = true;
-					console.log("GoogleSheetsApplications: Application list successfully read into memory.");
+					console.log("[GoogleSheetsApplications] Application list successfully read into memory.");
 					if(typeof(callback) == "function")
 						callback(true);
 				}
 			}).bind(this));
 		}
 	};
-	this.findAppByHandle = function(handle, rowSet)
+	this.findAppIdByHandle = function(handle, rowSet)
 	{
 		if(rowSet == null)
 			rowSet = this.all_apps;
 		if(rowSet == null)
-			return false;
+			return -1;
 		if(rowSet.length == 0)
-			return false;
+			return -1;
 		var i = Math.floor(rowSet.length/2);
 		var comp = handle.toLowerCase().localeCompare(rowSet[i][this.handle_column].toLowerCase());
 		if(comp < 0)
-			return this.findAppByHandle(handle, rowSet.slice(0, i));
+			return this.findAppIdByHandle(handle, rowSet.slice(0, i));
 		else if(comp > 0)
-			return this.findAppByHandle(handle, rowSet.slice(i, rowSet.length));
+			return this.findAppIdByHandle(handle, rowSet.slice(i, rowSet.length));
 		else
-			return rowSet[i];
+			return i;
+	};
+	this.findAppByHandle = function(handle)
+	{
+		var i = this.findAppIdByHandle(handle);
+		if(i > -1)
+			return this.all_apps[i];
+		else
+			return false;
+	};
+	this.findAllAppsByHandle = function(handle)
+	{
+		var i = this.findAppIdByHandle(handle);
+		if(i > -1)
+		{
+			handle = handle.toLowerCase();
+			while(i > 0 && this.all_apps[i-1][this.handle_column].toLowerCase() == handle)
+				i--;
+			var result = [];
+			while(i < this.all_apps.length && this.all_apps[i][this.handle_column].toLowerCase() == handle)
+			{
+				result.push(this.all_apps[i]);
+				i++;
+			}
+			return result;
+		}
+		else
+			return [];
 	};
 	
 	if(this.spreadsheet_id == null)
@@ -95,7 +122,7 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 							if(info.worksheets[i].id == this.worksheet_id)
 							{
 								this.sheet = info.worksheets[i];
-								console.log("GoogleSheetsApplications: Application list found.");
+								console.log("[GoogleSheetsApplications] Application list found.");
 								break;
 							}
 						}
