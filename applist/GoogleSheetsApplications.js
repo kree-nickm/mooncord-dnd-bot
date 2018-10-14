@@ -1,5 +1,5 @@
 const GoogleSpreadsheet = require('google-spreadsheet');
-const credentials = require("./credentials.json");
+const credentials = require("../credentials.json");
 module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 {
 	this.spreadsheet_id = spreadsheet_id;

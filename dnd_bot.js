@@ -40,10 +40,10 @@ const client = new Discord.Client();
 client.config = config;
 
 /* Uncomment these 2 lines to use Google Sheets API (and comment out the MySQL lines) */
-const GoogleSheetsApplications = require('./GoogleSheetsApplications.js');
+const GoogleSheetsApplications = require('./applist/GoogleSheetsApplications.js');
 const appList = new GoogleSheetsApplications(config.google_sheet, config.sheet_id, config.handle_column);
 /* Uncomment these 2 lines to use MySQL (and comment out the Google Sheets API lines) */
-//const MySQLApplications = require('./MySQLApplications.js');
+//const MySQLApplications = require('./applist/MySQLApplications.js');
 //const appList = new MySQLApplications(config.mysql_host, config.mysql_user, config.mysql_pass, config.mysql_db, config.mysql_table, config.mysql_column);
 
 client.appList = appList;

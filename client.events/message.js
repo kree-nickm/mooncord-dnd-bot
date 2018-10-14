@@ -149,7 +149,7 @@ function process_command(message, args, member)
 		}
 		else
 			steps++;
-		client.destroy().then(function(){
+		this.destroy().then(function(){
 			console.log("Discord client terminated by admin command.");
 			steps++;
 			if(steps == 2)
