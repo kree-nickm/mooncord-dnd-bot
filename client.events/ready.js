@@ -46,12 +46,12 @@ module.exports = function()
 			this.appList.loadApplications((function(success){
 				if(success)
 					this.last_refresh = new Date();
-				this.refresh_timer = this.setTimeout(this.periodic_refresh.bind(this), this.refresh_frequency);
+				this.refresh_timer = this.setTimeout(this.periodic_refresh, this.refresh_frequency);
 				if(typeof(callback) == "function")
 					callback.call(this, success);
 			}).bind(this));
 		}
 	};
-	this.refresh_timer = this.setTimeout(this.periodic_refresh.bind(this), this.refresh_frequency);
+	this.refresh_timer = this.setTimeout(this.periodic_refresh, this.refresh_frequency);
 	console.log("Mooncord D&D bot active.");
 };

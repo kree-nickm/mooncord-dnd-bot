@@ -5,10 +5,13 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 	this.spreadsheet_id = spreadsheet_id;
 	this.worksheet_id = worksheet_id;
 	this.handle_column = handle_column;
-	this.doc; // TODO: Not currently used beyond the code that defines it, so doesn't need to be here.
-	this.sheet;
-	this.all_apps;
 	this.ready = false;
+	
+	/**
+	* Sets this.all_apps to the latest application list loaded from Google Sheets.
+	* @param function(boolean) callback When loadApplications finishes its thing, it will call callback with an argument of true if the list was loaded, or false if it was not.
+	* @returns boolean True if this function at least attempted to load the application list, or false if it couldn't even attempt to do so because the Google Sheet was never loaded.
+	*/
 	this.loadApplications = function(callback)
 	{
 		if(this.sheet == null)
@@ -16,9 +19,11 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 			console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m Cannot load application list because the worksheet was never loaded.");
 			if(typeof(callback) == "function")
 				callback(false);
+			return false;
 		}
 		else
 		{
+			// Note: The rows MUST be sorted by handle, because we use a binary search to find handles.
 			this.sheet.getRows({orderby:this.handle_column}, (function(err,info){
 				if(err != null)
 				{
@@ -47,8 +52,16 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 						callback(true);
 				}
 			}).bind(this));
+			return true;
 		}
 	};
+	
+	/**
+	* Performs a binary search and returns the array index (of this.all_apps) of the given Discord handle.
+	* @param string handle The Discord handle to search against. Can be just a username if you are searching for username only.
+	* @param array rowSet The array of rows to search. Should only be used when called recursively.
+	* @returns int The index of the given handle, or -1 if it wasn't found in this.all_apps.
+	*/
 	this.findAppIdByHandle = function(handle, rowSet)
 	{
 		if(rowSet == null)
@@ -62,7 +75,13 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 		if(comp < 0)
 			return this.findAppIdByHandle(handle, rowSet.slice(0, i));
 		else if(comp > 0)
-			return this.findAppIdByHandle(handle, rowSet.slice(i+1));
+		{
+			var result = this.findAppIdByHandle(handle, rowSet.slice(i+1));
+			if(result > -1)
+				return result + i + 1;
+			else
+				return -1;
+		}
 		else
 			return i;
 	};
@@ -94,6 +113,9 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 			callback([]);
 	};
 	
+	/**
+	* Constructor code.
+	*/
 	if(this.spreadsheet_id == null)
 		console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m No Google Sheets identifier specified.");
 	else if(this.worksheet_id == null)
@@ -104,13 +126,13 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 		console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m No credentials specified.");
 	else
 	{
-		this.doc = new GoogleSpreadsheet(this.spreadsheet_id);
-		this.doc.useServiceAccountAuth(credentials, (function(err){
+		var doc = new GoogleSpreadsheet(this.spreadsheet_id);
+		doc.useServiceAccountAuth(credentials, (function(err){
 			if(err != null)
 				console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m Unable to authenticate with Google Sheets due to invalid credentials. %s", err.message);
 			else
 			{
-				this.doc.getInfo((function(err,info){
+				doc.getInfo((function(err,info){
 					if(err != null)
 						console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m Unable to fetch data from Google Sheet: \x1b[1m%s\x1b[0m; Sheet ID or credentials may be invalid.\n\x1b[1m--- BEGIN ERROR RESPONSE ---\x1b[0m\n%s\n\x1b[1m--- END ERROR RESPONSE ---\x1b[0m", this.spreadsheet_id, err);
 					else
