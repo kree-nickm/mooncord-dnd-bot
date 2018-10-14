@@ -3,15 +3,24 @@ module.exports = function(message)
 	if(message.author.bot || !message.content.startsWith(this.config.prefix))
 		return;
 	//console.log(message);
+	message.from_admin = Array.isArray(this.config.admin_ids) && this.config.admin_ids.indexOf(message.author.id) != -1;
 	var args = message.content.substr(this.config.prefix.length).trim().split(/ +/g);
 	var command = args.shift().toLowerCase();
 	if(command == "dnd" && (message.channel.type == "dm" || this.config.channel_ids.indexOf(message.channel.id) != -1))
 	{
-		// TODO: Probably get a list of dungeon masters first rather than doing this. fetchMember being asynchronous is the only reason this whole function has to be separate.
-		if(message.channel.type == "dm" && this.mooncord_guild != null)
-			this.mooncord_guild.fetchMember(message.author).then(process_command.bind(this,message,args));
-		else
-			process_command.call(this, message, args, message.member);
+		message.from_dm = this.dungeon_masters != null && this.dungeon_masters.get(message.author.id) != null;
+		if(!(message.from_dm || message.from_admin))
+		{	// Yeah I know this doesn't need to be split up 'if' statements, but it's way easier to read this way.
+			if(last_command.global != null && ((new Date())-last_command.global) < command_frequency.global)
+				return;
+			if(last_command.user[message.author.id] != null && ((new Date())-last_command.user[message.author.id]) < command_frequency.perUser)
+				return;
+		}
+		process_command.call(this, message, args);
+		last_command.global = new Date();
+		last_command.user[message.author.id] = new Date();
+		if(message.channel.type != "dm")
+			last_command.channel[message.channel.id] = new Date();
 	}
 };
 
@@ -27,25 +36,16 @@ var last_command = {
 	channel: {},
 };
 // TODO: Detect if one person is spamming and ban them.
-function process_command(message, args, member)
+function process_command(message, args)
 {
 	// TODO: Emote codes below, but they might not work on a bot. If not, edit all the replies to get rid of them.
 	// <:moon2T:284219508615413761> <:moon2S:496519208549613568> <:moon2N:497606808542642176> <:moon2PH:482219761699389450> <:moon2A:430810259620364309>
-	var is_admin = Array.isArray(this.config.admin_ids) && this.config.admin_ids.indexOf(message.author.id) != -1;
-	var is_dm = member != null && Array.isArray(member._roles) && member._roles.indexOf(this.config.dm_role_id) != -1;
-	if(!(is_dm || is_admin))
-	{	// Yeah I know this doesn't need to be split up 'if' statements, but it's way easier to read this way.
-		if(last_command.global != null && ((new Date())-last_command.global) < command_frequency.global)
-			return;
-		if(last_command.user[message.author.id] != null && ((new Date())-last_command.user[message.author.id]) < command_frequency.perUser)
-			return;
-	}
 	var param1 = args.length ? args.shift().toLowerCase() : "";
 	if(param1 == "app")
 	{
 		if(this.appList.ready)
 		{
-			if((is_dm || is_admin) && message.mentions.users.size)
+			if((message.from_dm || message.from_admin) && message.mentions.users.size)
 			{
 				var targetid = message.mentions.users.first().id;
 				var handle = message.mentions.users.first().username +"#"+ message.mentions.users.first().discriminator
@@ -102,7 +102,7 @@ function process_command(message, args, member)
 		else
 			message.author.send("The refresh command is not necessary with the current application list. The results should always be up to date. <:moon2S:496519208549613568>");
 	}
-	else if((is_dm || is_admin) && param1 == "refresh")
+	else if((message.from_dm || message.from_admin) && param1 == "refresh")
 	{
 		// TODO: This is probably only relavent for Google Sheets applications; I don't think MySQL will ever need to refresh.
 		// TODO: This code is almost identical to the periodic_refresh() function; they could probably be combined.
@@ -123,7 +123,7 @@ function process_command(message, args, member)
 		else
 			message.author.send("The refresh command is not necessary with the current application list. The results should always be up to date. <:moon2S:496519208549613568>");
 	}
-	else if(is_admin && param1 == "reloadconfig")
+	else if(message.from_admin && param1 == "reloadconfig")
 	{
 		// TODO: Replace this with some commands that modify the values directly rather than just reloading the config.json file on the host computer.
 		var temp = require("./config.json");
@@ -134,7 +134,7 @@ function process_command(message, args, member)
 		message.author.send("'config.json' has been reloaded. <:moon2N:497606808542642176>");
 		console.log("config.json reloaded via admin command.");
 	}
-	else if(is_admin && param1 == "shutdown")
+	else if(message.from_admin && param1 == "shutdown")
 	{
 		// This is preferable to just ctrl-C'ing in the console when MySQL is in use, because it explicitly shuts down the connections rather than having them time out eventually.
 		var steps = 0;
@@ -159,15 +159,11 @@ function process_command(message, args, member)
 	else
 	{
 		// Default response to any !dnd message that isn't covered above.
-		if(is_dm || is_admin)
+		if(message.from_dm || message.from_admin)
 			message.reply("To submit an application to join a D&D game, go to https://goo.gl/forms/vLASDQVIjfGVMfTS2 and fill out the form. <:moon2S:496519208549613568>");
 		else
 			message.author.send("To submit an application to join a D&D game, go to https://goo.gl/forms/vLASDQVIjfGVMfTS2 and fill out the form. <:moon2S:496519208549613568>");
 	}
-	last_command.global = new Date();
-	last_command.user[message.author.id] = new Date();
-	if(message.channel.type != "dm")
-		last_command.channel[message.channel.id] = new Date();
 }
 
 var refresh_frequency = 3600000;
