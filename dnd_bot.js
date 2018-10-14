@@ -1,26 +1,7 @@
 // ------------- Initialization -------------
 const Discord = require("discord.js");
 const fs = require("fs");
-const config = require("./config.json");/*
-config.json should be saved in the same directory as this file and contain something like this:
-{
-	"token": "application-bot-secret-token",
-	"prefix": "!",
-	"guild_id": "193277318494420992",
-	"channel_ids": ["##################","##################"],
-	"admin_ids": ["##################","##################"],
-	"dm_role_id": "##################",
-	"google_sheet": "google-spreadsheet-id",
-	"sheet_id": "worksheet-id",
-	"handle_column": "discordhandlecolumnheader",
-	"mysql_host": "hostname.or.ip",
-	"mysql_user": "username",
-	"mysql_pass": "password",
-	"mysql_db": "database",
-	"mysql_table": "table_with_apps",
-	"mysql_column": "column_with_Discord_handle"
-}
-*/
+const config = require("./config.json");
 if(typeof(config) != "object")
 {
 	console.error("\x1b[41mFatal Error:\x1b[0m config.json is not loaded.");
@@ -55,7 +36,7 @@ fs.readdir("./client.events/", function(err, files){
 	files.forEach(function(file){
 		if (!file.endsWith(".js"))
 			return;
-		const event = require(`./client.events/${file}`);
+		var event = require(`./client.events/${file}`);
 		var eventName = file.split(".")[0];
 		if(typeof(event) == "function")
 		{
@@ -64,6 +45,30 @@ fs.readdir("./client.events/", function(err, files){
 		}
 		else
 			console.warn("\x1b[1mWarning:\x1b[0m Found file for \x1b[1m%s\x1b[0m event, but it does not resolve into a valid function.", eventName);
+	});
+});
+
+client.commands = {};
+client.commands.dnd = {};
+/* NOTE: The functions in these commands must all return true or false:
+/* * true means they were executed by the bot as normal.
+/* * false means they were ignored by the bot, and thus the default command should be run instead.
+*/
+fs.readdir("./client.events/message.commands/dnd", function(err, files){
+	if(err)
+		return console.error("\x1b[41mFatal Error:\x1b[0m Unable to load message command handlers. %s", err);
+	files.forEach(function(file){
+		if (!file.endsWith(".js"))
+			return;
+		var command = require(`./client.events/message.commands/dnd/${file}`);
+		var commandName = file.split(".")[0];
+		if(typeof(command) == "object" && typeof(command.run) == "function")
+		{
+			client.commands.dnd[commandName] = command;
+			//delete require.cache[require.resolve(`./client.events/message.commands/dnd/${file}`)];
+		}
+		else
+			console.warn("\x1b[1mWarning:\x1b[0m Found file for \x1b[1m%s\x1b[0m command, but it does not resolve into a valid command object.", commandName);
 	});
 });
 
