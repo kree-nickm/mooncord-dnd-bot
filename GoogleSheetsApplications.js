@@ -62,7 +62,7 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 		if(comp < 0)
 			return this.findAppIdByHandle(handle, rowSet.slice(0, i));
 		else if(comp > 0)
-			return this.findAppIdByHandle(handle, rowSet.slice(i, rowSet.length));
+			return this.findAppIdByHandle(handle, rowSet.slice(i+1));
 		else
 			return i;
 	};
