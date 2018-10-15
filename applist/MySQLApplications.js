@@ -16,15 +16,24 @@ module.exports = function(host, user, password, database, table, column)
 	}).bind(this));
 	this.findAllAppsByHandle = function(handle, callback)
 	{
-		this.pool.query("SELECT * FROM "+ this.pool.escapeId(this.table) + " WHERE "+ this.pool.escapeId(this.column) +" = ?", handle, (function(err, results, fields){
-			if(err)
-			{
-				console.error("\x1b[31mMySQLApplications Error:\x1b[0m Error connecting to and/or running query on database. %s", err.message);
+		if(handle == null)
+		{
+			if(typeof(callback) == "function")
 				callback([]);
-			}
-			else
-				callback(results);
-		}).bind(this));
+		}
+		else
+		{
+			this.pool.query("SELECT * FROM "+ this.pool.escapeId(this.table) + " WHERE "+ this.pool.escapeId(this.column) +" = ?", handle, (function(err, results, fields){
+				if(err)
+				{
+					console.error("\x1b[31mMySQLApplications Error:\x1b[0m Error connecting to and/or running query on database. %s", err.message);
+					if(typeof(callback) == "function")
+						callback([]);
+				}
+				else if(typeof(callback) == "function")
+					callback(results);
+			}).bind(this));
+		}
 	};
 	this.shutdown = function(callback)
 	{

@@ -64,6 +64,10 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 	*/
 	this.findAppIdByHandle = function(handle, rowSet)
 	{
+		if(handle == null)
+			return -1;
+		else
+			handle = handle.toString();
 		if(rowSet == null)
 			rowSet = this.all_apps;
 		if(rowSet == null)
