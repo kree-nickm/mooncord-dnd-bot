@@ -3,11 +3,13 @@ This bot is to assist members of MOONMOON_OW's subscriber Discord with joining M
 
 ## For Public Users
 The bot understands the following commands:
-* `!dnd` Directs the caller to the Mooncord D&D application form.
-* `!dnd app` Checks on the status of the caller's D&D application. Dungeon masters can tag a user in this command to retreive the same information.
-* `!dnd lastrefresh` Displays the last time that the application list was refreshed.
-* `!dnd refresh` __DMs Only.__ Will refresh the application list. Any new apps submitted in between calls to this command won't be recognized. Unfortunately this is necessary with the current API to save time and bandwidth, however, this command will be run every hour on its own.
-* `!dnd shutdown` __Admins Only.__ Cleanly disconnects the bot from all APIs or other services that it is connected to before ending the process.
+* __`!dnd`__ Directs the caller to the Mooncord D&D application form.
+* __`!dnd app`__ Checks on the status of the caller's D&D application. Dungeon masters can @mention a user in this command to retreive the same information. Alternatively, they can type a username at the end of the command (which is not an @mention) to search for it instead. In either case, only one person's apps can be searched for at a time.
+* __`!dnd lastrefresh`__ Displays the last time that the application list was refreshed.
+* __`!dnd refresh`__ __DMs Only.__ Will refresh the application list. Any new apps submitted in between calls to this command won't be recognized. Unfortunately this is necessary with the current API to save time and bandwidth, however, this command will be run every hour on its own.
+* __`!dnd shutdown`__ __Admins Only.__ Cleanly disconnects the bot from all APIs or other services that it is connected to before ending the process.
+
+The bot does have an internal command cooldown to prevent it from being spammed.
 
 ## For Developers and Hosts
 If you wish to host or develop this bot, follow the installation steps below, then the steps for the appropriate section.
