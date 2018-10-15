@@ -54,4 +54,5 @@ module.exports = function()
 	};
 	this.refresh_timer = this.setTimeout(this.periodic_refresh, this.refresh_frequency);
 	console.log("Mooncord D&D bot active.");
+	//console.log(this.emojis);
 };
