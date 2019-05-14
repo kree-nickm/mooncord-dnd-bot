@@ -1,7 +1,34 @@
 // ------------- Initialization -------------
 const Discord = require("discord.js");
 const fs = require("fs");
-const config = require("./config.json");
+var config;
+if(fs.existsSync("config.json"))
+{
+	config = require("./config.json");
+}
+else
+{
+	console.log("config.json not found, attempting to use environment variables.");
+	config = {
+		"token": process.env.token,
+		"prefix": process.env.prefix,
+		"guild_id": process.env.guild_id,
+		"channel_ids": process.env.channel_ids.split(","),
+		"admin_ids": process.env.admin_ids.split(","),
+		"dm_role_id": process.env.dm_role_id,
+		
+		"google_sheet": process.env.google_sheet,
+		"sheet_id": process.env.sheet_id,
+		"handle_column": process.env.handle_column,
+		
+		"mysql_host": process.env.mysql_host,
+		"mysql_user": process.env.mysql_user,
+		"mysql_pass": process.env.mysql_pass,
+		"mysql_db": process.env.mysql_db,
+		"mysql_table": process.env.mysql_table,
+		"mysql_column": process.env.mysql_column
+	};
+}
 if(typeof(config) != "object")
 {
 	console.error("\x1b[41mFatal Error:\x1b[0m config.json is not loaded.");
