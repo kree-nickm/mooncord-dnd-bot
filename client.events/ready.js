@@ -24,12 +24,11 @@ module.exports = function()
 				else
 					dm_roles.push(role);
 			}
-			//var dm_role = mooncord_guild.roles.get(this.config.dm_role_id);
 			if(dm_roles.length > 0)
 			{
 				this.dungeon_masters = dm_roles[0].members;
 				for(var i = 1; i < dm_roles.length; i++)
-					this.dungeon_masters.concat(dm_roles[i].members);
+					this.dungeon_masters = this.dungeon_masters.concat(dm_roles[i].members);
 				// TODO: Remove duplicates.
 				console.log("\x1b[1m%s\x1b[0m dungeon masters found (possible duplicates).", this.dungeon_masters.size);
 				// TODO: Have a command refresh this.
