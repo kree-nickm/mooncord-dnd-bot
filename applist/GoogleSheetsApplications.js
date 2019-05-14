@@ -1,5 +1,14 @@
 const GoogleSpreadsheet = require('google-spreadsheet');
-const credentials = require("../credentials.json");
+var credentials;
+if(fs.existsSync("../credentials.json"))
+{
+	credentials = require("../credentials.json");
+}
+else
+{
+	console.log("credentials.json not found, attempting to use environment variables.");
+	credentials = JSON.parse(process.env.credentials);
+}
 module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 {
 	this.spreadsheet_id = spreadsheet_id;
