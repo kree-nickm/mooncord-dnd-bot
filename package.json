@@ -1,6 +1,6 @@
 {
 	"name": "mooncord-dnd-bot",
-	"version": "beta",
+	"version": "0.0.0",
 	"homepage": "https://github.com/kree-nickm/mooncord-dnd-bot",
 	"repository": {
 		"type" : "git",
