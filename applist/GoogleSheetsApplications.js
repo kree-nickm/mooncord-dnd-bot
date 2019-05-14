@@ -1,14 +1,21 @@
 const GoogleSpreadsheet = require('google-spreadsheet');
-const fs = require("fs");
 var credentials;
-if(fs.existsSync("../credentials.json"))
+try
 {
 	credentials = require("../credentials.json");
 }
-else
+catch(err)
 {
 	console.log("credentials.json not found, attempting to use environment variables.");
-	credentials = JSON.parse(process.env.credentials);
+	try
+	{
+		credentials = JSON.parse(process.env.credentials);
+	}
+	catch(err2)
+	{
+		console.error("No valid JSON in credentials environment variable. Cannot login to Google Sheets API.");
+		return;
+	}
 }
 module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 {

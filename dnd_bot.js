@@ -16,6 +16,7 @@ else
 		"channel_ids": process.env.channel_ids.split(","),
 		"admin_ids": process.env.admin_ids.split(","),
 		"dm_role_id": process.env.dm_role_id,
+		"dm_role_ids": process.env.dm_role_ids.split(","),
 		
 		"google_sheet": process.env.google_sheet,
 		"sheet_id": process.env.sheet_id,
