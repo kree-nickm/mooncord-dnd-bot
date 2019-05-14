@@ -13,7 +13,7 @@ catch(err)
 	}
 	catch(err2)
 	{
-		console.error("No valid JSON in credentials environment variable. Cannot login to Google Sheets API.");
+		console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m No valid JSON in credentials environment variable. Cannot login to Google Sheets API.");
 		return;
 	}
 }
@@ -158,7 +158,6 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 						console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m Unable to fetch data from Google Sheet: \x1b[1m%s\x1b[0m; Sheet ID or credentials may be invalid.\n\x1b[1m--- BEGIN ERROR RESPONSE ---\x1b[0m\n%s\n\x1b[1m--- END ERROR RESPONSE ---\x1b[0m", this.spreadsheet_id, err);
 					else
 					{
-						//console.log(info.worksheets);
 						this.sheet = null;
 						for(var i in info.worksheets)
 						{
@@ -170,7 +169,10 @@ module.exports = function(spreadsheet_id, worksheet_id, handle_column)
 							}
 						}
 						if(this.sheet == null)
+						{
 							console.error("\x1b[31mGoogleSheetsApplications Error:\x1b[0m Application list was not found using worksheet ID: \x1b[1m%s\x1b[0m", this.worksheet_id);
+							console.log(info.worksheets);
+						}
 						else
 							this.loadApplications();
 					}

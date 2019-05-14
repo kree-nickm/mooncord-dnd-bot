@@ -72,6 +72,8 @@ var getTimeString = function(app){
 		return (new Date(parseInt(app.changed)*1000)).toDateString();
 	else if(app.timestamp)
 		return (new Date(app.timestamp)).toDateString();
+	else if(app.datesubmitted)
+		return (new Date(app.datesubmitted)).toDateString();
 	else
 		return "... some day";
 };
