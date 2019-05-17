@@ -15,23 +15,14 @@ module.exports = function()
 			console.warn("\x1b[1mWarning:\x1b[0m DM role IDs not specified in config.json; specify the ID of the DM roles with the 'dm_role_ids' property. Without this, the bot will not be able to identify dungeon masters.");
 		else
 		{
-			var dm_roles = [];
+			this.dm_roles = [];
 			for(var i in this.config.dm_role_ids)
 			{
 				var role = mooncord_guild.roles.get(this.config.dm_role_ids[i]);
 				if(role == null)
 					console.warn("\x1b[1mWarning:\x1b[0m The specified DM role ID '%s' was not found among the \x1b[1m%s\x1b[0m guild's roles.", this.config.dm_role_ids[i], mooncord_guild.name);
 				else
-					dm_roles.push(role);
-			}
-			if(dm_roles.length > 0)
-			{
-				this.dungeon_masters = dm_roles[0].members;
-				for(var i = 1; i < dm_roles.length; i++)
-					this.dungeon_masters = this.dungeon_masters.concat(dm_roles[i].members);
-				// TODO: Remove duplicates.
-				console.log("\x1b[1m%s\x1b[0m dungeon masters found (possible duplicates).", this.dungeon_masters.size);
-				// TODO: Have a command refresh this.
+					this.dm_roles.push(role);
 			}
 		}
 	}

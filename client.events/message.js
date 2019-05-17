@@ -8,7 +8,14 @@ module.exports = function(message)
 	var command = args.shift().toLowerCase();
 	if(command == "dnd" && (message.channel.type == "dm" || this.config.channel_ids.indexOf(message.channel.id) != -1))
 	{
-		message.from_dm = this.dungeon_masters != null && this.dungeon_masters.get(message.author.id) != null;
+		message.from_dm = false;
+		message.member.roles.forEach(function(v,k,m){
+			for(var i=0; i<this.dm_roles.length; i++)
+			{
+				if(v.id == this.dm_roles[i].id)
+					message.from_dm = true;
+			}
+		}, this);
 		if(!(message.from_dm || message.from_admin))
 		{	// Yeah I know this doesn't need to be split up 'if' statements, but it's way easier to read this way.
 			if(this.last_command.global != null && ((new Date())-this.last_command.global) < this.command_frequency.global)
