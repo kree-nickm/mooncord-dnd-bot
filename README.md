@@ -48,7 +48,7 @@ Create a file in the same directory as the bot named `config.json`. The content 
 	"guild_id": "##################",
 	"channel_ids": ["##################","##################"],
 	"admin_ids": ["##################","##################"],
-	"dm_role_id": "##################",
+	"dm_role_ids": ["##################"],
 	
 	"google_sheet": "google-spreadsheet-id",
 	"sheet_id": "worksheet-id",
@@ -68,7 +68,7 @@ The properties are as follows (any time an ID of something in Discord is mention
 * __`guild_id`__: The ID of the server/guild that the bot will operate in. This is optional, but if the bot is being used via direct message, it can only check if the message sender has the dungeon master role if the guild ID is specified here.
 * __`channel_ids`__: An array of the IDs of any and all channels in which you want the bot to read and respond to commands. These are optional, but without them, the bot can only respond to direct messages.
 * __`admin_ids`__: An array of user IDs for users who will be recognized as bot admins, preferably including your own Discord user ID. These are optional, but without them, you will not be able to use or test any admin-only commands.
-* __`dm_role_id`__: The role ID that dungeon masters will be assigned. This is optional if you are just testing the bot by yourself, because if the bot recognizes you as an admin, you can use all DM commands without this. Otherwise, without this, DM-only commands won't work.
+* __`dm_role_ids`__: An array of the role IDs that dungeon masters will be assigned. This is optional if you are just testing the bot by yourself, because if the bot recognizes you as an admin, you can use all DM commands without this. Otherwise, without this, DM-only commands won't work.
 * __`google_sheet`__: _Only needed if using Google Sheets API_ The identifier of the Google Sheet that contains the list of applications. This is a long string of characters often found in the URL of the Google Sheet, ie. `"1IdR7hbgv-t1barrGEj659vyZ3jdbrz1-Thewrwm5vis"`.
 * __`sheet_id`__: _Only needed if using Google Sheets API_ The identifier of the specific tab of the above Google Sheet that represents the list of applications. This is a shorter string of characters, ie. `"onqmyzf"`.
 * __`handle_column`__: _Only needed if using Google Sheets API_ The column header of the column of the sheet that contains the Discord handle (ie. Name#1234). This should be the text in the header cell, but all lower case and with only letters and numbers (no spaces etc). For example, if the header cell contains "Discord Handle?", this value should be `"discordhandle"`.
@@ -76,7 +76,7 @@ The properties are as follows (any time an ID of something in Discord is mention
 * __`mysql_table`__: _Only needed if using MySQL_ Table of the database that contains all of the applications.
 * __`mysql_column`__: _Only needed if using MySQL_ Name of the column that contains Discord handles.
 
-Obtaining the above IDs/identifiers in an easy way is unfortunately beyond the scope of this tutorial at this time. You could find the Discord IDs by doing a `console.log(message);` inside of the message event and examining the output. You could find the spreadsheet tab identifiers by doing a `console.log(info.worksheets);` inside the `doc.getInfo` function.
+Obtaining the above IDs/identifiers can usually be done by enabling Developer Mode in Discrod (Found in User Settings > Appearance). With that, you can right-click various things in Discord (users, channels, servers, etc.) and select Copy ID to have the ID copied to your clipboard. If you can't find it that way, you could find the Discord IDs by doing a `console.log(message);` inside of the message event and examining the output. You could find the spreadsheet tab identifiers by doing a `console.log(info.worksheets);` inside the `doc.getInfo` function.
 
 The bot should now be fully set up and ready to be hosted so that you can test your changes. See below for hosting instructions.
 
