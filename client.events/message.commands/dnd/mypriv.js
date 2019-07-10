@@ -10,3 +10,8 @@ exports.run = function(message, args)
 		message.author.send("You have no special privelidges.");
 	return true;
 };
+exports.help = {
+	//format: "",
+	short: "Checks on your permission levels as far as running bot commands.",
+	//long: "",
+};

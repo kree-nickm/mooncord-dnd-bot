@@ -15,19 +15,12 @@ else
 		"guild_id": process.env.guild_id,
 		"channel_ids": process.env.channel_ids.split(","),
 		"admin_ids": process.env.admin_ids.split(","),
-		"dm_role_id": process.env.dm_role_id,
 		"dm_role_ids": process.env.dm_role_ids.split(","),
-		
-		"google_sheet": process.env.google_sheet,
-		"sheet_id": process.env.sheet_id,
-		"handle_column": process.env.handle_column,
 		
 		"mysql_host": process.env.mysql_host,
 		"mysql_user": process.env.mysql_user,
 		"mysql_pass": process.env.mysql_pass,
-		"mysql_db": process.env.mysql_db,
-		"mysql_table": process.env.mysql_table,
-		"mysql_column": process.env.mysql_column
+		"mysql_db": process.env.mysql_db
 	};
 }
 if(typeof(config) != "object")
@@ -48,12 +41,8 @@ else if(config.prefix == null)
 const client = new Discord.Client();
 client.config = config;
 
-/* Uncomment these 2 lines to use Google Sheets API (and comment out the MySQL lines) */
-const GoogleSheetsApplications = require('./applist/GoogleSheetsApplications.js');
-const appList = new GoogleSheetsApplications(config.google_sheet, config.sheet_id, config.handle_column);
-/* Uncomment these 2 lines to use MySQL (and comment out the Google Sheets API lines) */
-//const MySQLApplications = require('./applist/MySQLApplications.js');
-//const appList = new MySQLApplications(config.mysql_host, config.mysql_user, config.mysql_pass, config.mysql_db, config.mysql_table, config.mysql_column);
+const MySQLApplications = require('./applist/MySQLApplications.js');
+const appList = new MySQLApplications(config.mysql_host, config.mysql_user, config.mysql_pass, config.mysql_db);
 
 client.appList = appList;
 
@@ -77,27 +66,48 @@ fs.readdir("./client.events/", function(err, files){
 });
 
 client.commands = {};
-client.commands.dnd = {};
 /* NOTE: The functions in these commands must all return true or false:
 /* * true means they were executed by the bot as normal.
 /* * false means they were ignored by the bot, and thus the default command should be run instead.
 */
-fs.readdir("./client.events/message.commands/dnd", function(err, files){
-	if(err)
-		return console.error("\x1b[41mFatal Error:\x1b[0m Unable to load message command handlers. %s", err);
-	files.forEach(function(file){
-		if (!file.endsWith(".js"))
-			return;
-		var command = require(`./client.events/message.commands/dnd/${file}`);
-		var commandName = file.split(".")[0];
-		if(typeof(command) == "object" && typeof(command.run) == "function")
-		{
-			client.commands.dnd[commandName] = command;
-			//delete require.cache[require.resolve(`./client.events/message.commands/dnd/${file}`)];
-		}
-		else
-			console.warn("\x1b[1mWarning:\x1b[0m Found file for \x1b[1m%s\x1b[0m command, but it does not resolve into a valid command object.", commandName);
+(function parseMessageDirectory(dir, subdirs)
+{
+	fs.readdir(dir, {encoding:"utf8",withFileTypes:true}, function(err, files){
+		if(err)
+			return console.error("\x1b[41mFatal Error:\x1b[0m Unable to load message command handlers. %s", err);
+		//console.log(files);
+		var cmdObject = client.commands;
+		subdirs.forEach(function(subdir){
+			cmdObject = cmdObject[subdir];
+		});
+		files.forEach(function(file){
+			if(file.isFile() && file.name.endsWith(".js"))
+			{
+				var command = require(`${dir}/${file.name}`);
+				var commandName = file.name.split(".")[0];
+				if(commandName != "" && typeof(command) == "object" && typeof(command.run) == "function")
+				{
+					if(typeof(cmdObject[commandName]) == "object")
+						cmdObject[commandName][''] = command;
+					else
+						cmdObject[commandName] = command;
+					//delete require.cache[require.resolve(`${dir}/${file.name}`)];
+				}
+				else
+					console.warn("\x1b[1mWarning:\x1b[0m Found file \x1b[1m%s\x1b[0m for command, but it does not resolve into a valid command object.", `${dir}/${file.name}`);
+			}
+			else if(file.isDirectory())
+			{
+				if(typeof(cmdObject[file.name]) == "object" && typeof(cmdObject[file.name].run) == "function")
+					cmdObject[file.name] = {'':cmdObject[file.name]};
+				else
+					cmdObject[file.name] = {};
+				parseMessageDirectory(dir +"/"+ file.name, subdirs.concat([file.name]));
+			}
+		});
+		console.log(client.commands);
 	});
-});
+})("./client.events/message.commands", []);
+
 
 client.login(config.token);

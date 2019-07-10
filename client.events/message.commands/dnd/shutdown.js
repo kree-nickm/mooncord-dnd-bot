@@ -26,3 +26,8 @@ exports.run = function(message, args)
 	else
 		return false;
 };
+exports.help = {
+	//format: "",
+	short: "Admins only. Shuts down the bot. It should automatically reboot.",
+	//long: "",
+};

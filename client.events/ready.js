@@ -26,6 +26,13 @@ module.exports = function()
 			}
 		}
 	}
+	this.website = "http://www.moonlightdnd.com/";
+	this.emoji = {};
+	this.emojis.forEach((function(emoji){
+		if(!emoji.deleted)
+			this.emoji[emoji.name] = emoji.toString();
+	}).bind(this));
+	//console.log(this.emoji);
 	// The rate limit for commands (milliseconds). The bot will not respond faster than this unless it is a dungeon master or an admin making the command.
 	this.command_frequency = {
 		global: 1000, // This applies to all of this bot's messages everywhere. Ex. if two different people send commands, even in whisper, within this period, the second one will be ignored.
@@ -54,5 +61,4 @@ module.exports = function()
 	};
 	this.refresh_timer = this.setTimeout(this.periodic_refresh, this.refresh_frequency);
 	console.log("Mooncord D&D bot active.");
-	//console.log(this.emojis);
 };
