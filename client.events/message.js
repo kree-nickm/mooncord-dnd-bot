@@ -25,7 +25,7 @@ module.exports = function(message)
 			if(this.last_command.user[message.author.id] != null && ((new Date())-this.last_command.user[message.author.id]) < this.command_frequency.perUser)
 				return;
 		}
-		
+		this.appList.logChannel(message, null);
 		if(typeof(this.commands[command].run) == "function")
 		{
 			this.commands[command].run.call(this, message, args);

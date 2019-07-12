@@ -26,7 +26,8 @@ module.exports = function()
 			}
 		}
 	}
-	this.website = "http://www.moonlightdnd.com/";
+	//this.website = "http://www.moonlightdnd.com/";
+	this.website = "http://www.moonlight-rpg.com/";
 	this.emoji = {};
 	this.emojis.forEach((function(emoji){
 		if(!emoji.deleted)
@@ -61,4 +62,5 @@ module.exports = function()
 	};
 	this.refresh_timer = this.setTimeout(this.periodic_refresh, this.refresh_frequency);
 	console.log("Mooncord D&D bot active.");
+	console.log("Registered Commands:\n", this.commands);
 };

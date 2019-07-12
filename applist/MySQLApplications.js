@@ -12,6 +12,7 @@ module.exports = function(host, user, password, database)
 			console.log("[MySQLApplications] Connected to database. %s applications found.", results[0].count);
 		}
 	}).bind(this));
+	
 	this.findAppByID = function(id, callback)
 	{
 		if(id == null || !this.ready)
@@ -33,6 +34,7 @@ module.exports = function(host, user, password, database)
 			}).bind(this));
 		}
 	};
+	
 	this.confirmRequest = function(id, callback)
 	{
 		if(id == null || !this.ready)
@@ -54,6 +56,7 @@ module.exports = function(host, user, password, database)
 			}).bind(this));
 		}
 	};
+	
 	this.updateRequest = function(id, desc, callback)
 	{
 		if(id == null || !this.ready)
@@ -86,6 +89,42 @@ module.exports = function(host, user, password, database)
 			}).bind(this));
 		}
 	};
+	
+	this.logChannel = function(message, callback)
+	{
+		if(message == null || !this.ready)
+		{
+			if(typeof(callback) == "function")
+				callback(-1);
+		}
+		else
+		{
+			var simpleChannel = {
+				last_message_id: message.id,
+				type: message.channel.type,
+				id: message.channel.id,
+				recipients: [
+					{
+						username: message.author.username,
+						discriminator: message.author.discriminator,
+						id: message.author.id,
+						avatar: message.author.avatar,
+					}
+				],
+			};
+			this.pool.query("INSERT INTO bot_log (`channel_id`,`channel`) VALUES(?,?) ON DUPLICATE KEY UPDATE `channel`=VALUES(`channel`)", [message.channel.id,JSON.stringify(simpleChannel)], (function(err, results, fields){
+				if(err)
+				{
+					console.error("\x1b[31mMySQLApplications Error:\x1b[0m Error connecting to and/or running query on database. %s", err.message);
+					if(typeof(callback) == "function")
+						callback(-1);
+				}
+				else if(typeof(callback) == "function")
+					callback(results.changedRows);
+			}).bind(this));
+		}
+	}
+	
 	this.shutdown = function(callback)
 	{
 		this.ready = false;

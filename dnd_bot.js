@@ -105,7 +105,7 @@ client.commands = {};
 				parseMessageDirectory(dir +"/"+ file.name, subdirs.concat([file.name]));
 			}
 		});
-		console.log(client.commands);
+		//console.log(client.commands);
 	});
 })("./client.events/message.commands", []);
 
