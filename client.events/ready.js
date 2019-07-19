@@ -26,7 +26,6 @@ module.exports = function()
 			}
 		}
 	}
-	//this.website = "http://www.moonlightdnd.com/";
 	this.website = "http://www.moonlight-rpg.com/";
 	this.emoji = {};
 	this.emojis.forEach((function(emoji){
