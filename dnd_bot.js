@@ -20,7 +20,9 @@ else
 		"mysql_host": process.env.mysql_host,
 		"mysql_user": process.env.mysql_user,
 		"mysql_pass": process.env.mysql_pass,
-		"mysql_db": process.env.mysql_db
+		"mysql_db": process.env.mysql_db,
+		
+		"socks_connection": process.env.FIXIE_SOCKS_HOST
 	};
 }
 if(typeof(config) != "object")
@@ -42,7 +44,7 @@ const client = new Discord.Client();
 client.config = config;
 
 const MySQLApplications = require('./applist/MySQLApplications.js');
-const appList = new MySQLApplications(config.mysql_host, config.mysql_user, config.mysql_pass, config.mysql_db);
+const appList = new MySQLApplications(config.mysql_host, config.mysql_user, config.mysql_pass, config.mysql_db, config.socks_connection);
 
 client.appList = appList;
 

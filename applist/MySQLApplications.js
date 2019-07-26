@@ -1,8 +1,37 @@
-const mysql = require('mysql');
-module.exports = function(host, user, password, database)
+const SocksConnection = require('socksjs');
+const mysql = require('mysql2');
+module.exports = function(host, user, password, database, socks)
 {
+	if(socks != null)
+	{
+		var socksValues = socks.split(new RegExp('[/(:\\/@)/]+'));
+		this.socksConnection = new SocksConnection({
+			host: host,
+			port: 3306,
+		}, {
+			user: socksValues[0],
+			pass: socksValues[1],
+			host: socksValues[2],
+			port: socksValues[3],
+		});
+	}
+	else
+		this.socksConnection = null;
 	this.ready = false;
-	this.pool = mysql.createPool({connectionLimit:3,host:host,user:user,password:password,database:database});
+	var poolOptions = {
+		connectionLimit:3,
+		user:user,
+		password:password,
+		database:database
+	};
+	if(this.socksConnection != null)
+	{
+		poolOptions.stream = this.socksConnection;
+		console.log("[MySQLApplications] Using SocksConnection to access the database...");
+	}
+	else
+		poolOptions.host = host;
+	this.pool = mysql.createPool(poolOptions);
 	this.pool.query("SELECT COUNT(*) AS `count` FROM dnd", (function(err, results, fields){
 		if(err != null)
 			console.error("\x1b[31mMySQLApplications Error:\x1b[0m Error connecting to and/or running query on database. %s", err.message);
