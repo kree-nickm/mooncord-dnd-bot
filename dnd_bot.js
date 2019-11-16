@@ -43,10 +43,10 @@ else if(config.prefix == null)
 const client = new Discord.Client();
 client.config = config;
 
-const MySQLApplications = require('./applist/MySQLApplications.js');
+/*const MySQLApplications = require('./applist/MySQLApplications.js');
 const appList = new MySQLApplications(config.mysql_host, config.mysql_user, config.mysql_pass, config.mysql_db, config.socks_connection);
 
-client.appList = appList;
+client.appList = appList;*/
 
 // ------------- Events -------------
 fs.readdir("./client.events/", function(err, files){
