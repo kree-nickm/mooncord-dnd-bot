@@ -2,28 +2,35 @@ exports.run = function(message, args)
 {
 	var options = {embed:{fields:[]}};
 	
-	var addField = (function(string, command, uselong){
+	var addField = (function(string, command, uselong, commandName){
 		var name = string;
-		var value = "Type `!help "+ string +"` for more information on this command.";
+		var value = "Type `"+ this.config.prefix +"help "+ string +"` for more information on this command.";
 		if(typeof(command.run) == "function")
 		{
 			if(typeof(command.help) == "object")
 			{
-				if(typeof(command.help.format) == "string")
-					name = command.help.format;
-				if(typeof(command.help.short) == "string")
+				if(Array.isArray(command.help.aliases) && command.help.primary !== commandName)
 				{
-					value = command.help.short;
-					if(typeof(command.help.long) == "string")
-					{
-						if(uselong)
-							value += " "+ command.help.long;
-						else
-							value += "\nType `!help "+ string +"` for more information on this command.";
-					}
+					value = "This is an alias for `"+ this.config.prefix + command.help.primary +"`.";
 				}
-				else if(typeof(command.help.long) != "string")
-					value = "No information is available on this command.";
+				else
+				{
+					if(typeof(command.help.format) == "string")
+						name = command.help.format;
+					if(typeof(command.help.short) == "string")
+					{
+						value = command.help.short;
+						if(typeof(command.help.long) == "string")
+						{
+							if(uselong)
+								value += " "+ command.help.long;
+							else
+								value += "\nType `"+ this.config.prefix +"help "+ string +"` for more information on this command.";
+						}
+					}
+					else if(typeof(command.help.long) != "string")
+						value = "No information is available on this command.";
+				}
 			}
 			else
 				value = "No information is available on this command.";
@@ -37,7 +44,7 @@ exports.run = function(message, args)
 	var buildOptions = (function(cmdObject, subArgs){
 		Object.keys(cmdObject).forEach(function(cmd){
 			if(subArgs.length > 0 || cmd != "help")
-				addField(subArgs.join(" ") + (subArgs.length?" ":"") + cmd, cmdObject[cmd], false);
+				addField(subArgs.join(" ") + (subArgs.length?" ":"") + cmd, cmdObject[cmd], false, cmd);
 		}, this);
 	}).bind(this);
 	
@@ -52,7 +59,7 @@ exports.run = function(message, args)
 		}
 		if(typeof(command.run) == "function")
 		{
-			addField(args.join(" "), command, true);
+			addField(args.join(" "), command, true, args[i]);
 		}
 		else if(typeof(command[args[i]]) == "object")
 		{

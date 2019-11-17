@@ -32,43 +32,25 @@ module.exports = function()
 	this.website = "https://www.moonlight-rpg.com/";
 	
 	// Attempt to make the server emotes easier to access (for some reason, the bot doesn't seem to be able to use many emotes, so this isn't that useful).
-	this.emoji = {};
+	/*this.emoji = {};
 	this.emojis.forEach((function(emoji){
 		if(!emoji.deleted)
 			this.emoji[emoji.name] = emoji.toString();
 	}).bind(this));
-	//console.log(this.emoji);
+	//console.log(this.emoji);*/
 	
-	// The rate limit for commands (milliseconds). The bot will not respond faster than this unless it is a game master or an admin making the command.
+	// The rate limit for commands (milliseconds). Note: GMs and admins ignore ALL of the below. They still trigger cooldowns for others, but can always run commands regardless of when the last command happened.
 	this.command_frequency = {
-		global: 1000, // This applies to all of this bot's messages everywhere, ie. if two different people send commands, even in whisper, within this period, the second one will be ignored.
+		global: 500, // This applies to all of this bot's messages everywhere, ie. if two different people send commands, even in whisper, within this period, the second one will be ignored.
 		perUser: 5000, // This applies to an individual person's commands. A single normal user cannot execute commands more frequent than this.
-		perChannel: 30000, // This applies to individual channels. Though only DM commands go to the channel, which bypass the limit, so maybe this is useless.
+		perChannel: 1000, // This applies to individual channels. The bot won't send messages to a single channel more frequent than this.
 	};
 	this.last_command = {
 		user: {},
 		channel: {},
 	};
 	// TODO: Detect if one person is spamming and ban them.
-	
-	// Automatic refresh of application data. This is probably not needed anymore, but I'll make sure before removing it.
-	this.refresh_frequency = 3600000;
-	this.last_refresh = new Date();
-	this.periodic_refresh = function(callback){
-		this.clearTimeout(this.refresh_timer);
-		if(this.appList != null && typeof(this.appList.loadApplications) == "function")
-		{
-			this.appList.loadApplications((function(success){
-				if(success)
-					this.last_refresh = new Date();
-				this.refresh_timer = this.setTimeout(this.periodic_refresh, this.refresh_frequency);
-				if(typeof(callback) == "function")
-					callback.call(this, success);
-			}).bind(this));
-		}
-	};
-	this.refresh_timer = this.setTimeout(this.periodic_refresh, this.refresh_frequency);
-	
+		
 	// Let the console know we're good to go.
 	console.log("Mooncord D&D bot active.");
 	console.log("Registered Commands:\n", this.commands);

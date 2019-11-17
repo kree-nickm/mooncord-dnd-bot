@@ -13,9 +13,8 @@
 	},
 	"dependencies": {
 		"discord.js": ">=11.4.2",
-		"mysql2": "^1.6.5",
+		"mathjs": "^6.2.3",
 		"request": ">=2.88.0",
-		"socksjs": "^0.5.0"
 	},
 	"engines": {
 		"node": "10.x"

@@ -28,9 +28,6 @@ module.exports = function(message)
 				return;
 		}
 		
-		// Log to MySQL (rework this in future).
-		//this.appList.logChannel(message, null);
-		
 		// Run the specified command using its stored function, or the default if the command is unknown.
 		if(typeof(this.commands[command].run) == "function")
 		{

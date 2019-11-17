@@ -1,29 +1,36 @@
+const math = require("mathjs");
+
 exports.run = function(message, args)
 {
+	//console.log("------------------------");
 	// Define basic roll function.
-	let rollDie = (die=20) => {
-		return Math.floor(Math.random() * die) + 1; // Replace this with a "better" random function if you want.
-	};
+	let rollDie = die => Math.floor(Math.random() * die) + 1;
 	
 	// The regex for parsing the user command.
-	let rexRoll = /(?<count>\d+)?d(?<size>\d+)/;
+	let rexRoll = /\b(?<base>(?<count>\d+)?d(?<size>\d+))(?:[dk][lh]?\d+|[re!]o?(?:>=|<=|>|<|=)?\d*)*\b/;
 	let rexDropKeep = /(?<action>[dk])(?<which>[lh])?(?<count>\d+)/;
-	let rexReroll = /(?<action>[r!])(?<once>o)?(?<compare>>|<|>=|<=|=)?(?<value>\d+)?/;
+	let rexReroll = /(?<action>[re!])(?<once>o)?(?<compare>>=|<=|>|<|=)?(?<value>\d+)?/;
 	
-	let arg = args[0];//args.forEach((arg) => {
-		let rollOutput = {
-			total: 0,
-			rolls: [],
-			keepRolls: [],
-			activeRolls: [],
-			text: "",
-		};
-		let argLower = arg.toLowerCase();
-		let matchRoll = argLower.match(rexRoll);
+	// Take the string that defines a roll, execute it, and return an object with the relavent data.
+	let doRoll = function(string, offset=0)
+	{
+		//console.log("----------------");
+		string = string.substr(offset).toLowerCase();
+		let matchRoll = string.match(rexRoll);
 		//console.log("Roll Match:", matchRoll);
-		if(matchRoll !== null && typeof(matchRoll) === "object" && matchRoll.groups !== null)
+		if(matchRoll !== null && typeof(matchRoll) === "object" && matchRoll.groups !== undefined)
 		{
 			//console.log("Roll Groups:", matchRoll.groups);
+			let rollOutput = {
+				total: 0,
+				rolls: [],
+				keepRolls: [],
+				activeRolls: [],
+				text: "",
+				matchIndex: matchRoll.index + offset,
+				matchString: matchRoll[0],
+			};
+			
 			let diceCount = parseInt(matchRoll.groups.count);
 			if(isNaN(diceCount))
 				diceCount = 1;
@@ -37,12 +44,12 @@ exports.run = function(message, args)
 			}
 			
 			// Now check for roll variations.
-			let argVars = argLower.substr(matchRoll.index + matchRoll[0].length);
+			let variations = string.substring(matchRoll.index + matchRoll.groups.base.length, matchRoll.index + matchRoll.groups.base.length + matchRoll[0].length);
 			
 			// Handle ...d# ...dl# ...dh# ...k# ...kh# ...kl#
-			let matchDropKeep = argVars.match(rexDropKeep);
+			let matchDropKeep = variations.match(rexDropKeep);
 			//console.log("Drop/Keep Match:", matchDropKeep);
-			if(matchDropKeep !== null && typeof(matchDropKeep) === "object" && matchDropKeep.groups !== null)
+			if(matchDropKeep !== null && typeof(matchDropKeep) === "object" && matchDropKeep.groups !== undefined)
 			{
 				//console.log("Drop/Keep Groups:", matchDropKeep.groups);
 				let affectCount = parseInt(matchDropKeep.groups.count);
@@ -93,50 +100,30 @@ exports.run = function(message, args)
 				rollOutput.activeRolls.splice(start, end-start);
 			}
 			
-			// Handle ...r# ...ro# ...! ...r<# ...etc.
-			let matchReroll = argVars.match(rexReroll);
+			// Handle ...r# ...ro# ...e ...! ...r<# ...etc.
+			let matchReroll = variations.match(rexReroll);
 			//console.log("Reroll Match:", matchReroll);
-			if(matchReroll !== null && typeof(matchReroll) === "object" && matchReroll.groups !== null)
+			if(matchReroll !== null && typeof(matchReroll) === "object" && matchReroll.groups !== undefined)
 			{
 				//console.log("Reroll Groups:", matchReroll.groups);
 				let value = parseInt(matchReroll.groups.value);
 				if(isNaN(value))
 				{
-					if(matchReroll.groups.action === "!")
+					if(matchReroll.groups.action === "e" || matchReroll.groups.action === "!")
 						value = diceSize;
 					else if(matchReroll.groups.action === "r")
 						value = 1;
-					else
-						value = 0;
 				}
 				let length = rollOutput.rolls.length;
 				for(let i=0; i<length; i++)
 				{
-					let reroll = false;
-					if(rollOutput.keepRolls[i])
-					{
-						if(rollOutput.rolls[i] > value && matchReroll.groups.compare === ">")
-						{
-							reroll = true;
-						}
-						else if(rollOutput.rolls[i] >= value && matchReroll.groups.compare === ">=")
-						{
-							reroll = true;
-						}
-						else if(rollOutput.rolls[i] < value && matchReroll.groups.compare === "<")
-						{
-							reroll = true;
-						}
-						else if(rollOutput.rolls[i] <= value && matchReroll.groups.compare === "<=")
-						{
-							reroll = true;
-						}
-						else if(rollOutput.rolls[i] == value)
-						{
-							reroll = true;
-						}
-					}
-					if(reroll)
+					if(rollOutput.keepRolls[i] && (
+						rollOutput.rolls[i] > value && matchReroll.groups.compare === ">" ||
+						rollOutput.rolls[i] >= value && matchReroll.groups.compare === ">=" ||
+						rollOutput.rolls[i] < value && matchReroll.groups.compare === "<" ||
+						rollOutput.rolls[i] <= value && matchReroll.groups.compare === "<=" ||
+						rollOutput.rolls[i] === value && (matchReroll.groups.compare === "=" || matchReroll.groups.compare === undefined)
+					))
 					{
 						// Remove current roll if not exploding.
 						if(matchReroll.groups.action === "r")
@@ -161,34 +148,82 @@ exports.run = function(message, args)
 					}
 				}
 			}
+			
+			// Tally up the rolls and generate the output.
+			for(let i=0; i<rollOutput.rolls.length; i++)
+			{
+				if(rollOutput.rolls.length < 100 && rollOutput.text !== "")
+					rollOutput.text += "+";
+				else if(rollOutput.rolls.length >= 100)
+					rollOutput.text = "*that's a lot of dice*";
+				if(rollOutput.keepRolls[i])
+				{
+					rollOutput.total += rollOutput.rolls[i];
+					if(rollOutput.rolls.length < 100)
+						rollOutput.text += "**"+ rollOutput.rolls[i] +"**";
+				}
+				else
+				{
+					if(rollOutput.rolls.length < 100)
+						rollOutput.text += "~~"+ rollOutput.rolls[i] +"~~";
+				}
+			}
+			return rollOutput;
 		}
-		
-		// Tally up the rolls and generate the output.
-		for(let i=0; i<rollOutput.rolls.length; i++)
+		else
+			return null;
+	}
+	
+	let input = args.join(" ").replace(/\[[^\]]*]|<:[^:]+:\d+>/g, "").replace(/\s*([-+\/*()%^])\s*/g, "$1");
+	let calc = input;
+	let output = input;
+	let offset = 0;
+	let calcOffset = 0;
+	let outputOffset = 0;
+	let rollOutput = null;
+	do {
+		rollOutput = doRoll(input, offset);
+		//console.log("-----------");
+		//console.log("Roll:", rollOutput);
+		if(rollOutput !== null)
 		{
-			if(rollOutput.rolls.length < 100 && rollOutput.text !== "")
-				rollOutput.text += "+";
-			else if(rollOutput.rolls.length >= 100)
-				rollOutput.text = "that's a lot of dice";
-			if(rollOutput.keepRolls[i])
-			{
-				rollOutput.total += rollOutput.rolls[i];
-				if(rollOutput.rolls.length < 100)
-					rollOutput.text += "**"+ rollOutput.rolls[i] +"**";
-			}
-			else
-			{
-				if(rollOutput.rolls.length < 100)
-					rollOutput.text += "~~"+ rollOutput.rolls[i] +"~~";
-			}
+			offset = rollOutput.matchIndex + rollOutput.matchString.length;
+			//console.log("New Offset:", offset);
+			calc = calc.substring(0, rollOutput.matchIndex + calcOffset) + rollOutput.total.toString() + calc.substring(offset + calcOffset);
+			calcOffset += rollOutput.total.toString().length - rollOutput.matchString.length;
+			//console.log("New Calc:", calc);
+			//console.log("New Calc Offset:", calcOffset);
+			output = output.substring(0, rollOutput.matchIndex + outputOffset) +"("+ rollOutput.text +")"+ output.substring(offset + outputOffset);
+			outputOffset += rollOutput.text.length - rollOutput.matchString.length + 2;
+			//console.log("New Output:", output);
+			//console.log("New Output Offset:", outputOffset);
 		}
-		console.log(rollOutput);
-	//});
-	message.reply("\n>>> __**"+ rollOutput.total +"**__ ("+ rollOutput.text +")");
+	} while(rollOutput !== null && offset < input.length);
+	//console.log("----------------");
+	let result = "*unable to calculate*";
+	try {
+		result = "__**" + math.evaluate(calc) + "**__";
+	}
+	catch(x1) {
+		console.warn("Couldn't parse expression:", calc);
+		calc = calc.replace(/([^-0-9+\/* ().%^]).*/, "");
+		console.warn("Trying: `"+ calc +"`");
+		try {
+			result = "__**" + math.evaluate(calc) + "**__";
+		}
+		catch(x2) {
+			console.warn("Still couldn't parse expression:", calc);
+		}
+	}
+	if(output.length > 500)
+		output = "*(too much text)*";
+	message.reply("\n> "+ result +" : "+ output);
+	
 	return true;
 };
 exports.help = {
-	format: "#d#",
-	short: "Roll some dice. Supports dropping dice, exploding dice, and rerolling dice. Doesn't support modifiers.",
+	format: "r #d#",
+	short: "Roll some dice. Supports dropping dice, exploding dice, and rerolling dice, as well as some amount of math.",
 	long: "Basic usage: 4d6\nDrop lowest 1: 4d6d1\nKeep lowest 1: 4d6kl1\nExplode on crit: 4d6!\nReroll 1s: 4d6r1",
+	aliases: ["roll"],
 };
