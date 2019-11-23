@@ -24,7 +24,7 @@ exports.run = function(message, args)
 			//console.log("Roll Groups:", matchRoll.groups);
 			let rollOutput = {
 				total: 0,
-				successes: 0,
+				successes: -1,
 				rolls: [],
 				keepRolls: [],
 				activeRolls: [],
@@ -159,6 +159,7 @@ exports.run = function(message, args)
 			{
 				//console.log("Target Groups:", matchTarget.groups);
 				targetValue = parseInt(matchTarget.groups.value);
+				rollOutput.successes = 0;
 			}
 			
 			// Tally up the rolls and generate the output.
@@ -224,7 +225,7 @@ exports.run = function(message, args)
 			{
 				offset = rollOutput.matchIndex + rollOutput.matchString.length;
 				//console.log("New Offset:", offset);
-				let value = rollOutput.successes>0 ? rollOutput.successes : rollOutput.total;
+				let value = rollOutput.successes>-1 ? rollOutput.successes : rollOutput.total;
 				calc = calc.substring(0, rollOutput.matchIndex + calcOffset) + value.toString() + calc.substring(offset + calcOffset);
 				calcOffset += value.toString().length - rollOutput.matchString.length;
 				//console.log("New Calc:", calc);
