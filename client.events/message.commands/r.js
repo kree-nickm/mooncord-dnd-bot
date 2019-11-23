@@ -7,9 +7,10 @@ exports.run = function(message, args)
 	let rollDie = die => Math.floor(Math.random() * die) + 1;
 	
 	// The regex for parsing the user command.
-	let rexRoll = /\b(?<base>(?<count>\d+)?d(?<size>\d+))(?:[dk][lh]?\d+|[re!]o?(?:>=|<=|>|<|=)?\d*)*\b/;
+	let rexRoll = /\b(?<base>(?<count>\d+)?d(?<size>\d+))(?:[dk][lh]?\d+|[re!]o?(?:>=|<=|>|<|=)?\d*|t(?:>=|<=|>|<|=)?\d+)*\b/;
 	let rexDropKeep = /(?<action>[dk])(?<which>[lh])?(?<count>\d+)/;
 	let rexReroll = /(?<action>[re!])(?<once>o)?(?<compare>>=|<=|>|<|=)?(?<value>\d+)?/;
+	let rexTarget = /(?<action>t)(?<compare>>=|<=|>|<|=)?(?<value>\d+)/;
 	
 	// Take the string that defines a roll, execute it, and return an object with the relavent data.
 	let doRoll = function(string, offset=0)
@@ -23,6 +24,7 @@ exports.run = function(message, args)
 			//console.log("Roll Groups:", matchRoll.groups);
 			let rollOutput = {
 				total: 0,
+				successes: 0,
 				rolls: [],
 				keepRolls: [],
 				activeRolls: [],
@@ -44,7 +46,7 @@ exports.run = function(message, args)
 			}
 			
 			// Now check for roll variations.
-			let variations = string.substring(matchRoll.index + matchRoll.groups.base.length, matchRoll.index + matchRoll.groups.base.length + matchRoll[0].length);
+			let variations = string.substring(matchRoll.index + matchRoll.groups.base.length, matchRoll.index + matchRoll[0].length);
 			
 			// Handle ...d# ...dl# ...dh# ...k# ...kh# ...kl#
 			let matchDropKeep = variations.match(rexDropKeep);
@@ -149,6 +151,16 @@ exports.run = function(message, args)
 				}
 			}
 			
+			// Handle ...t#
+			let matchTarget = variations.match(rexTarget);
+			let targetValue = undefined;
+			//console.log("Target Match:", matchTarget);
+			if(matchTarget !== null && typeof(matchTarget) === "object" && matchTarget.groups !== undefined)
+			{
+				//console.log("Target Groups:", matchTarget.groups);
+				targetValue = parseInt(matchTarget.groups.value);
+			}
+			
 			// Tally up the rolls and generate the output.
 			for(let i=0; i<rollOutput.rolls.length; i++)
 			{
@@ -158,9 +170,27 @@ exports.run = function(message, args)
 					rollOutput.text = "*that's a lot of dice*";
 				if(rollOutput.keepRolls[i])
 				{
-					rollOutput.total += rollOutput.rolls[i];
-					if(rollOutput.rolls.length < 100)
+					if(!isNaN(targetValue))
+					{
+						if(
+							rollOutput.rolls[i] > targetValue && matchTarget.groups.compare === ">" ||
+							rollOutput.rolls[i] >= targetValue && (matchTarget.groups.compare === ">=" || matchTarget.groups.compare === undefined) ||
+							rollOutput.rolls[i] < targetValue && matchTarget.groups.compare === "<" ||
+							rollOutput.rolls[i] <= targetValue && matchTarget.groups.compare === "<=" ||
+							rollOutput.rolls[i] === targetValue && matchTarget.groups.compare === "="
+						)
+						{
+							rollOutput.successes++;
+							if(rollOutput.rolls.length < 100)
+								rollOutput.text += "**"+ rollOutput.rolls[i] +"**";
+						}
+						else if(rollOutput.rolls.length < 100)
+							rollOutput.text += rollOutput.rolls[i];
+							
+					}
+					else if(rollOutput.rolls.length < 100)
 						rollOutput.text += "**"+ rollOutput.rolls[i] +"**";
+					rollOutput.total += rollOutput.rolls[i];
 				}
 				else
 				{
@@ -174,50 +204,65 @@ exports.run = function(message, args)
 			return null;
 	}
 	
-	let input = args.join(" ").replace(/\[[^\]]*]|<:[^:]+:\d+>/g, "").replace(/\s*([-+\/*()%^])\s*/g, "$1");
-	let calc = input;
-	let output = input;
-	let offset = 0;
-	let calcOffset = 0;
-	let outputOffset = 0;
-	let rollOutput = null;
-	do {
-		rollOutput = doRoll(input, offset);
-		//console.log("-----------");
-		//console.log("Roll:", rollOutput);
-		if(rollOutput !== null)
-		{
-			offset = rollOutput.matchIndex + rollOutput.matchString.length;
-			//console.log("New Offset:", offset);
-			calc = calc.substring(0, rollOutput.matchIndex + calcOffset) + rollOutput.total.toString() + calc.substring(offset + calcOffset);
-			calcOffset += rollOutput.total.toString().length - rollOutput.matchString.length;
-			//console.log("New Calc:", calc);
-			//console.log("New Calc Offset:", calcOffset);
-			output = output.substring(0, rollOutput.matchIndex + outputOffset) +"("+ rollOutput.text +")"+ output.substring(offset + outputOffset);
-			outputOffset += rollOutput.text.length - rollOutput.matchString.length + 2;
-			//console.log("New Output:", output);
-			//console.log("New Output Offset:", outputOffset);
-		}
-	} while(rollOutput !== null && offset < input.length);
-	//console.log("----------------");
-	let result = "*unable to calculate*";
-	try {
-		result = "__**" + math.evaluate(calc) + "**__";
-	}
-	catch(x1) {
-		console.warn("Couldn't parse expression:", calc);
-		calc = calc.replace(/([^-0-9+\/* ().%^]).*/, "");
-		console.warn("Trying: `"+ calc +"`");
+	// END definitions. Actual execution starts here.
+	let reply = "";
+	let resultsArr = [];
+	let lines = 0;
+	let inputArr = args.join(" ").replace(/\[[^\]]*]|<:[^:]+:\d+>/g, "").replace(/\s*([-+\/*()%^,])\s*/g, "$1").split(",");
+	inputArr.forEach(input => {
+		let calc = input;
+		let output = input;
+		let offset = 0;
+		let calcOffset = 0;
+		let outputOffset = 0;
+		let rollOutput = null;
+		do {
+			rollOutput = doRoll(input, offset);
+			//console.log("-----------");
+			//console.log("Roll:", rollOutput);
+			if(rollOutput !== null)
+			{
+				offset = rollOutput.matchIndex + rollOutput.matchString.length;
+				//console.log("New Offset:", offset);
+				let value = rollOutput.successes>0 ? rollOutput.successes : rollOutput.total;
+				calc = calc.substring(0, rollOutput.matchIndex + calcOffset) + value.toString() + calc.substring(offset + calcOffset);
+				calcOffset += value.toString().length - rollOutput.matchString.length;
+				//console.log("New Calc:", calc);
+				//console.log("New Calc Offset:", calcOffset);
+				output = output.substring(0, rollOutput.matchIndex + outputOffset) +"("+ rollOutput.text +")"+ output.substring(offset + outputOffset);
+				outputOffset += rollOutput.text.length - rollOutput.matchString.length + 2;
+				//console.log("New Output:", output);
+				//console.log("New Output Offset:", outputOffset);
+			}
+		} while(rollOutput !== null && offset < input.length);
+		//console.log("----------------");
+		
+		// Done parsing rolls into numbers and text, now run the math.
+		let result = "*unable to calculate*";
 		try {
 			result = "__**" + math.evaluate(calc) + "**__";
 		}
-		catch(x2) {
-			console.warn("Still couldn't parse expression:", calc);
+		catch(x1) {
+			console.warn("Couldn't parse expression:", calc);
+			calc = calc.replace(/([^-0-9+\/* ().%^]).*/, "");
+			console.warn("Trying: `"+ calc +"`");
+			try {
+				result = "__**" + math.evaluate(calc) + "**__";
+			}
+			catch(x2) {
+				console.warn("Still couldn't parse expression:", calc);
+			}
 		}
-	}
-	if(output.length > 500)
-		output = "*(too much text)*";
-	message.reply("\n> "+ result +" : "+ output);
+		if(output.length > 500)
+			output = "*(too much text)*";
+		reply += "\n> "+ result +" : "+ output;
+		resultsArr.push(result);
+		lines++;
+	});
+	if(lines < 20 && reply.length < 1900)
+		message.reply(reply);
+	else
+		message.reply("\n> "+ resultsArr.join(", ") +" *(too many dice/results to print full rolls)*");
 	
 	return true;
 };

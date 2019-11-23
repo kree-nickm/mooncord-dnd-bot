@@ -37,30 +37,31 @@ const client = new Discord.Client();
 client.config = config;
 
 // ------------- Events -------------
-fs.readdir("./client.events/", (err, files) => {
-	if(err)
-		return console.error("\x1b[41mFatal Error:\x1b[0m Unable to load Discord event handlers. %s", err);
-	files.forEach(file => {
-		if (!file.endsWith(".js"))
-			return;
-		var event = require(`./client.events/${file}`);
-		var eventName = file.split(".")[0];
-		if(typeof(event) == "function")
-		{
-			client.on(eventName, event);
-		}
-		else
-			console.warn("\x1b[1mWarning:\x1b[0m Found file for \x1b[1m%s\x1b[0m event, but it does not resolve into a valid function.", eventName);
-	});
-});
+client.reloadEvents = () => {
+	fs.readdir("./client.events/", (err, files) => {
+		if(err)
+			return console.error("\x1b[41mFatal Error:\x1b[0m Unable to load Discord event handlers. %s", err);
+		files.forEach(file => {
+			if (!file.endsWith(".js"))
+				return;
+			var event = require(`./client.events/${file}`);
+			var eventName = file.split(".")[0];
+			if(typeof(event) == "function")
+				client.on(eventName, event);
+			else
+				console.warn("\x1b[1mWarning:\x1b[0m Found file for \x1b[1m%s\x1b[0m event, but it does not resolve into a valid function.", eventName);
+			delete require.cache[require.resolve(`./client.events/${file}`)];
+		});
+	})
+};
+client.reloadEvents();
 
-client.commands = {};
 /* NOTE: The functions in these commands must all return true or false:
 /* * true means they were executed by the bot as normal.
 /* * false means they were ignored by the bot, and thus the default command should be run instead.
 */
-(function parseMessageDirectory(dir, subdirs)
-{
+client.commands = {};
+client.reloadCmds = (dir="./client.events/message.commands", subdirs=[]) => {
 	fs.readdir(dir, {encoding:"utf8",withFileTypes:true}, (err, files) => {
 		if(err)
 			return console.error("\x1b[41mFatal Error:\x1b[0m Unable to load message command handlers. %s", err);
@@ -94,6 +95,7 @@ client.commands = {};
 				}
 				else
 					console.warn("\x1b[1mWarning:\x1b[0m Found file \x1b[1m%s\x1b[0m for command, but it does not resolve into a valid command object.", `${dir}/${file.name}`);
+				delete require.cache[require.resolve(`${dir}/${file.name}`)];
 			}
 			else if(file.isDirectory())
 			{
@@ -102,12 +104,12 @@ client.commands = {};
 					cmdObject[file.name] = {'':cmdObject[file.name]};
 				else
 					cmdObject[file.name] = {};
-				parseMessageDirectory(dir +"/"+ file.name, subdirs.concat([file.name]));
+				client.reloadCmds(dir +"/"+ file.name, subdirs.concat([file.name]));
 			}
 		});
 		//console.log(client.commands);
 	});
-})("./client.events/message.commands", []);
-
+};
+client.reloadCmds();
 
 client.login(config.token);
