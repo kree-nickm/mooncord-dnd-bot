@@ -5,23 +5,23 @@ module.exports = function()
 		console.warn("\x1b[1mWarning:\x1b[0m Channel IDs not specified in config.json; specify the valid channels by listing their IDs in an array with the 'channel_ids' property. Without this, the bot will only be able to respond to direct messages.");
 	if(!Array.isArray(this.config.admin_ids))
 		console.warn("\x1b[1mWarning:\x1b[0m Admin IDs not specified in config.json; specify the admins by listing their IDs in an array with the 'admin_ids' property. Without this, the bot will not be able to identify admins.");
-	if(this.config.guild_id == null)
+	if(!this.config.guild_id)
 		console.warn("\x1b[1mWarning:\x1b[0m Guild ID not specified in config.json; specify the ID of the Mooncord guild with the 'guild_id' property. Without this, the bot will not be able to identify game masters if a command is sent in a direct message.");
 	else
 	{
-		var mooncord_guild = this.guilds.get(this.config.guild_id);
-		if(mooncord_guild == null)
+		var mooncord_guild = this.guilds.resolve(this.config.guild_id);
+		if(!mooncord_guild?.id)
 			console.warn("\x1b[1mWarning:\x1b[0m This bot does not appear to be a member of the specified Mooncord guild. Without this, the bot will not be able to identify game masters if a command is sent in a direct message.");
-		else if(this.config.dm_role_ids == null)
-			console.warn("\x1b[1mWarning:\x1b[0m DM role IDs not specified in config.json; specify the ID of the DM roles with the 'dm_role_ids' property. Without this, the bot will not be able to identify game masters.");
+		else if(!Array.isArray(this.config.dm_role_ids))
+			console.warn("\x1b[1mWarning:\x1b[0m GM role IDs not specified in config.json; specify the ID of the GM roles with the 'dm_role_ids' property. Without this, the bot will not be able to identify game masters.");
 		else
 		{
 			this.dm_roles = [];
 			for(var i in this.config.dm_role_ids)
 			{
-				var role = mooncord_guild.roles.get(this.config.dm_role_ids[i]);
-				if(role == null)
-					console.warn("\x1b[1mWarning:\x1b[0m The specified DM role ID '%s' was not found among the \x1b[1m%s\x1b[0m guild's roles.", this.config.dm_role_ids[i], mooncord_guild.name);
+				var role = mooncord_guild.roles.resolve(this.config.dm_role_ids[i]);
+				if(!role)
+					console.warn("\x1b[1mWarning:\x1b[0m The specified GM role ID '%s' was not found among the \x1b[1m%s\x1b[0m guild's roles.", this.config.dm_role_ids[i], mooncord_guild.name);
 				else
 					this.dm_roles.push(role);
 			}
@@ -30,6 +30,7 @@ module.exports = function()
 	
 	// Set this here for commands that refer back to it (could move it to the config file, but it probably doesn't matter).
 	this.website = "https://www.moonlight-rpg.com/";
+	this.moonlightrpg.advertReactEmoji = "588481240697536512";
 	
 	// Attempt to make the server emotes easier to access (for some reason, the bot doesn't seem to be able to use many emotes, so this isn't that useful).
 	/*this.emoji = {};
@@ -49,9 +50,44 @@ module.exports = function()
 		user: {},
 		channel: {},
 	};
+	this.moonlightrpg.timers = {};
 	// TODO: Detect if one person is spamming and ban them.
 		
 	// Let the console know we're good to go.
 	console.log("Mooncord D&D bot active.");
-	console.log("Registered Commands:\n", this.commands);
+	console.log("Registered Commands:");
+   for(let cmd in this.commands)
+   {
+      if(typeof(this.commands[cmd].run) == "function")
+      {
+         if(!this.commands[cmd].help?.primary || this.commands[cmd].help.primary == cmd)
+         {
+            console.log(`    ${this.config.prefix}${this.commands[cmd].help?.format?this.commands[cmd].help.format:cmd}    | ${this.commands[cmd].help?.short}`);
+            if(Array.isArray(this.commands[cmd].help?.aliases))
+               for(let a of this.commands[cmd].help.aliases)
+                  console.log(`    ${this.config.prefix}${a}    | Alias of ${this.config.prefix}${cmd}`);
+         }
+      }
+      else
+      {
+         for(let subcmd in this.commands[cmd])
+         {
+            if(typeof(this.commands[cmd][subcmd].run) == "function")
+            {
+               if(!this.commands[cmd][subcmd].help?.primary || this.commands[cmd][subcmd].help.primary == subcmd)
+               {
+                  console.log(`    ${this.config.prefix}${this.commands[cmd][subcmd].help?.format?this.commands[cmd][subcmd].help.format:cmd+" "+subcmd}    | ${this.commands[cmd][subcmd].help?.short}`);
+                  if(Array.isArray(this.commands[cmd][subcmd].help?.aliases))
+                     for(let a of this.commands[cmd][subcmd].help.aliases)
+                        console.log(`    ${this.config.prefix}${cmd} ${a}    | Alias of ${this.config.prefix}${cmd} ${subcmd}`);
+               }
+            }
+            else
+            {
+               console.log(`    ${this.config.prefix}${cmd} ${subcmd} ... More parameters not shown.`);
+            }
+         }
+      }
+   }
+   console.log("");
 };

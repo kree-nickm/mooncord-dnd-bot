@@ -62,4 +62,5 @@ typings/
 
 # the config files with secret data
 config.json
+config.*.json
 credentials.json
