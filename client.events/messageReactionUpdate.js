@@ -6,11 +6,11 @@ module.exports = function(action, reaction, user)
       return;
    if(!reaction)
       return;
-   if(Array.isArray(this.moonlightrpg?.advertisements))
+   if(!user.bot && Array.isArray(this.moonlightrpg?.advertisements))
    {
-      for(let advert of this.moonlightrpg.advertisements)
+      for(let a in this.moonlightrpg.advertisements)
       {
-         if(reaction.message?.id == advert.message && reaction._emoji?.id == this.moonlightrpg.advertReactEmoji)
+         if(reaction.message?.id == this.moonlightrpg.advertisements[a].message && reaction._emoji?.id == this.moonlightrpg.advertReactEmoji && user.id != this.moonlightrpg.advertisements[a].gm)
          {
             // TODO: Also make sure it's not the GM or the bot.
             // Prevent users from spamming reactions by delaying the bot's function on a timer.
@@ -101,7 +101,9 @@ module.exports = function(action, reaction, user)
                   result => console.log("Database updated:", result),
                   err => console.error("Error updating database:", err)
                );*/
-               // TODO: Update client.moonlightrpg.advertisements ? idk, we're not really even using it past initialization.
+               advertiseData.game = game.index;
+               advertiseData.gm = game.dm;
+               this.moonlightrpg.advertisements[a] = advertiseData;
                this.moonlightrpg.timers[timerid] = {
                   timeout: 0,
                   added: [],
