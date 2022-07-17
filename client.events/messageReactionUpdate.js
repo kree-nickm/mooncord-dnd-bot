@@ -12,7 +12,7 @@ module.exports = function(action, reaction, user)
       {
          if(reaction.message?.id == this.moonlightrpg.advertisements[a].message && reaction._emoji?.id == this.moonlightrpg.advertReactEmoji && user.id != this.moonlightrpg.advertisements[a].gm)
          {
-            // TODO: Also make sure it's not the GM or the bot.
+            console.log(`Valid Reaction Witnessed (${action})`, `Message:${reaction.message.id}`, `User:${user.username}#${user.discriminator}`);
             // Prevent users from spamming reactions by delaying the bot's function on a timer.
             let timerid = reaction.message.id;
             if(!this.moonlightrpg.timers[timerid])
@@ -38,18 +38,9 @@ module.exports = function(action, reaction, user)
             // Either way, restart the timer.
             clearTimeout(this.moonlightrpg.timers[timerid].timeout);
             this.moonlightrpg.timers[timerid].timeout = setTimeout(async () => {
-               //console.log("----- Reaction Processing -----");
-               //console.log(reaction);
-               //console.log("----- Reaction Users -----");
-               //console.log(reaction.users.cache);
-               //console.log("----- Reaction Timer Data -----");
-               //console.log(this.moonlightrpg.timers[timerid]);
+               console.log(`Reaction Timer Processing`, `Message:${timerid}`);
                let game = (await this.moonlightrpg.database.queryPromise("SELECT * FROM `games` WHERE `advertiseData`->'$.message'=?", reaction.message.id))[0];
-               //console.log("----- Advert Game Row -----");
-               //console.log(game);
                let advertiseData = JSON.parse(game.advertiseData);
-               //console.log("----- Advert Data -----");
-               //console.log(advertiseData);
                let GM = await this.users.fetch(game.dm);
                for(let uid of this.moonlightrpg.timers[timerid].removed)
                {
@@ -59,7 +50,7 @@ module.exports = function(action, reaction, user)
                   {
                      advertiseData.signups.splice(i, 1);
                      GM.send(`One of your players, ${uobj}, in the game "${game.group}" has removed themselves from the sign-up list. You can check the advertisement here: ${reaction.message.url}`);
-                     uobj.send(`You have removed yourself from ${GM}'s game, "${game.group}". The GM has been notified as well. Anyone on the waitlist has been notified that a slot has opened up.`);
+                     uobj.send(`You have removed yourself from ${GM.username}#${GM.discriminator}'s game, "${game.group}". The GM has been notified as well. Anyone on the waitlist has been notified that a slot has opened up.`);
                      for(let k in advertiseData.waitlist)
                      {
                         // We can't just take the next person, because what if they are about to be removed when we iterate through this.moonlightrpg.timers[timerid].removed? Pointless messages would get spammed, that's what.
@@ -68,15 +59,15 @@ module.exports = function(action, reaction, user)
                            let movedUserId = advertiseData.waitlist.splice(k, 1)[0];
                            let movedUser = await this.users.fetch(movedUserId);
                            advertiseData.signups.push(movedUserId);
-                           GM.send(`However, ${movedUser}, a player from the waitlist for "${game.group}", has now been moved to the player list.`);
-                           movedUser.send(`A player in ${GM}'s game, "${game.group}", has dropped out. Because you were first on the waitlist, you have now been added to the player list for that game. The GM has been notified as well and should get in touch iwth you when they are ready.`);
+                           GM.send(`However, ${movedUser.username}#${movedUser.discriminator}, a player from the waitlist for "${game.group}", has now been moved to the player list.`);
+                           movedUser.send(`A player in ${GM.username}#${GM.discriminator}'s game, "${game.group}", has dropped out. Because you were first on the waitlist, you have now been added to the player list for that game. The GM has been notified as well and should get in touch iwth you when they are ready.`);
                         }
                      }
                   }
                   else if((i = advertiseData.waitlist.indexOf(uid)) != -1)
                   {
                      advertiseData.waitlist.splice(i, 1);
-                     uobj.send(`You have been removed from the waitlist for ${GM}'s game, "${game.group}".`);
+                     uobj.send(`You have been removed from the waitlist for ${GM.username}#${GM.discriminator}'s game, "${game.group}".`);
                   }
                }
                for(let uid of this.moonlightrpg.timers[timerid].added)
@@ -87,13 +78,13 @@ module.exports = function(action, reaction, user)
                   if(advertiseData.signups.length < advertiseData.limit)
                   {
                      advertiseData.signups.push(uid);
-                     GM.send(`A new player, ${uobj}, has been added to the sign-ups for your game, "${game.group}". You can check the advertisement here: ${reaction.message.url}`);
-                     uobj.send(`You have successfully signed up for ${GM}'s game, "${game.group}". The GM has been notified as well and should get in touch with you when they are ready.`);
+                     GM.send(`A new player, ${uobj.username}#${uobj.discriminator}, has been added to the sign-ups for your game, "${game.group}". You can check the advertisement here: ${reaction.message.url}`);
+                     uobj.send(`You have successfully signed up for ${GM.username}#${GM.discriminator}'s game, "${game.group}". The GM has been notified as well and should get in touch with you when they are ready.`);
                   }
                   else
                   {
                      advertiseData.waitlist.push(uid);
-                     uobj.send(`You attempted to sign up for ${GM}'s game, "${game.group}". However, the game has already reached its sign-up limit. You've been added to a waitlist in case anyone drops out of the game, and you'll be notified automatically if a spot opens up for you.`);
+                     uobj.send(`You attempted to sign up for ${GM.username}#${GM.discriminator}'s game, "${game.group}". However, the game has already reached its sign-up limit. You've been added to a waitlist in case anyone drops out of the game, and you'll be notified automatically if a spot opens up for you.`);
                   }
                }
                await this.moonlightrpg.database.queryPromise("UPDATE `games` SET `advertiseData`=? WHERE `index`=?", [JSON.stringify(advertiseData), game.index]);
