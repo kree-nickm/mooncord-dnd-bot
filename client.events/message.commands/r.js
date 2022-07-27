@@ -85,7 +85,7 @@ exports.run = function(message, args)
 				}
 				else
 				{
-					console.error("We're somehow in the drop/keep variation when neither 'd' nor 'k' was specified monkaS.");
+					console.error((new Date()).toUTCString(), "We're somehow in the drop/keep variation when neither 'd' nor 'k' was specified monkaS.");
 				}
 				rollOutput.activeRolls.sort((a,b) => {return a-b;});
 				for(let i=start; i<end; i++)
@@ -244,14 +244,15 @@ exports.run = function(message, args)
 			result = "__**" + math.evaluate(calc) + "**__";
 		}
 		catch(x1) {
-			console.warn("Couldn't parse expression:", calc);
+         // TODO: People love to input things without following the format and get here, so try to handle it a little more gracefully.
+			console.warn((new Date()).toUTCString(), "Couldn't parse expression:", calc);
 			calc = calc.replace(/([^-0-9+\/* ().%^]).*/, "");
-			console.warn("Trying: `"+ calc +"`");
+			console.warn((new Date()).toUTCString(), "Trying: `"+ calc +"`");
 			try {
 				result = "__**" + math.evaluate(calc) + "**__";
 			}
 			catch(x2) {
-				console.warn("Still couldn't parse expression:", calc);
+				console.warn((new Date()).toUTCString(), "Still couldn't parse expression:", calc);
 			}
 		}
 		if(output.length > 500)

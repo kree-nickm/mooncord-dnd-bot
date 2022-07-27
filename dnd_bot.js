@@ -6,7 +6,7 @@ console.log("");
 console.log("********************************************************************************");
 console.log("****************************** MoonlightRPG Bot ********************************");
 console.log("********************************************************************************");
-console.log("");
+console.log((new Date()).toUTCString(), "Bot Startup...");
    
 const fs = require("fs");
 var config;
@@ -16,7 +16,7 @@ if(fs.existsSync("config.json"))
 }
 else
 {
-	console.log("config.json not found, attempting to use environment variables.");
+	console.log((new Date()).toUTCString(), "config.json not found, attempting to use environment variables.");
 	config = {
 		"token": process.env.token,
 		"prefix": process.env.prefix,
@@ -24,6 +24,7 @@ else
 		"channel_ids": process.env.channel_ids.split(","),
 		"admin_ids": process.env.admin_ids.split(","),
 		"dm_role_ids": process.env.dm_role_ids.split(","),
+		"signup_delay": process.env.signup_delay,
 		"mysql_host": process.env.mysql_host,
 		"mysql_user": process.env.mysql_user,
 		"mysql_pass": process.env.mysql_pass,
@@ -32,17 +33,17 @@ else
 }
 if(typeof(config) !== "object")
 {
-	console.error("\x1b[41mFatal Error:\x1b[0m config.json is not loaded.");
+	console.error((new Date()).toUTCString(), "\x1b[41mFatal Error:\x1b[0m config.json is not loaded.");
 	return false;
 }
 else if(config.token == null)
 {
-	console.error("\x1b[41mFatal Error:\x1b[0m Bot token not specified in config.json; specify the token with the 'token' property.");
+	console.error((new Date()).toUTCString(), "\x1b[41mFatal Error:\x1b[0m Bot token not specified in config.json; specify the token with the 'token' property.");
 	return false;
 }
 else if(config.prefix == null)
 {
-	console.error("\x1b[41mFatal Error:\x1b[0m Prefix not specified in config.json; specify the prefix with the 'prefix' property.");
+	console.error((new Date()).toUTCString(), "\x1b[41mFatal Error:\x1b[0m Prefix not specified in config.json; specify the prefix with the 'prefix' property.");
 	return false;
 }
 
@@ -69,7 +70,7 @@ client.config = config;
 client.reloadEvents = () => {
 	fs.readdir("./client.events/", (err, files) => {
 		if(err)
-			return console.error("\x1b[41mFatal Error:\x1b[0m Unable to load Discord event handlers. %s", err);
+			return console.error((new Date()).toUTCString(), "\x1b[41mFatal Error:\x1b[0m Unable to load Discord event handlers. %s", err);
 		files.forEach(file => {
 			if (!file.endsWith(".js"))
 				return;
@@ -78,7 +79,7 @@ client.reloadEvents = () => {
          if(typeof(event) == "function")
             client.on(eventName, event);
          else
-            console.warn("\x1b[1mWarning:\x1b[0m Found file for \x1b[1m%s\x1b[0m event, but it does not resolve into a valid function.", eventName);
+            console.warn((new Date()).toUTCString(), "\x1b[1mWarning:\x1b[0m Found file for \x1b[1m%s\x1b[0m event, but it does not resolve into a valid function.", eventName);
          delete require.cache[require.resolve(`./client.events/${file}`)];
 		});
 	})
@@ -93,7 +94,7 @@ client.commands = {};
 client.reloadCmds = (dir="./client.events/message.commands", subdirs=[]) => {
 	fs.readdir(dir, {encoding:"utf8",withFileTypes:true}, (err, files) => {
 		if(err)
-			return console.error("\x1b[41mFatal Error:\x1b[0m Unable to load message command handlers. %s", err);
+			return console.error((new Date()).toUTCString(), "\x1b[41mFatal Error:\x1b[0m Unable to load message command handlers. %s", err);
 		let cmdObject = client.commands;
 		subdirs.forEach(subdir => cmdObject = cmdObject[subdir]);
 		files.forEach(file => {
@@ -122,7 +123,7 @@ client.reloadCmds = (dir="./client.events/message.commands", subdirs=[]) => {
 						cmdObject[commandName] = command;
 				}
 				else
-					console.warn("\x1b[1mWarning:\x1b[0m Found file \x1b[1m%s\x1b[0m for command, but it does not resolve into a valid command object.", `${dir}/${file.name}`);
+					console.warn((new Date()).toUTCString(), "\x1b[1mWarning:\x1b[0m Found file \x1b[1m%s\x1b[0m for command, but it does not resolve into a valid command object.", `${dir}/${file.name}`);
 				delete require.cache[require.resolve(`${dir}/${file.name}`)];
 			}
 			else if(file.isDirectory())
@@ -140,7 +141,7 @@ client.reloadCmds = (dir="./client.events/message.commands", subdirs=[]) => {
 client.reloadCmds();
 
 let promiseLogin = client.login(client.config.token);
-promiseLogin.then(result => console.log("Bot successfully logged in to Discord."));
+promiseLogin.then(result => console.log((new Date()).toUTCString(), "Bot successfully logged in to Discord."));
 
 /******************************************************************************
 ****************************** Initialize MySQL *******************************
@@ -203,12 +204,12 @@ let promiseMySQL = new Promise((resolve,reject) => {
 */
 
 promiseMySQL.then(result => {
-   console.log("MySQL connection established successfully. Advertisements found:");
+   console.log((new Date()).toUTCString(), "MySQL connection established successfully. Advertisements found:");
    for(let row of result)
       console.log(`    "${row.title}" | GameID: ${row.game} | Signups: ${row.signups.length}/${row.limit} | Waitlist: ${row.waitlist.length}`);
    console.log("");
 }, err => {
-   console.error("MySQL connection failed.", err);
+   console.error((new Date()).toUTCString(), "MySQL connection failed.", err);
 });
 
 /******************************************************************************
@@ -222,5 +223,5 @@ Promise.all([promiseLogin, promiseMySQL]).then(async result => {
       let message = await channel.messages.fetch(data.message);
       // TODO: If the message has been deleted or reactions changed while the bot was down, inform the database.
    }
-   console.log("Existing advertisements fetched.");
+   console.log((new Date()).toUTCString(), "Existing advertisements fetched.");
 });

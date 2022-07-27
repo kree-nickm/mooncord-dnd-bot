@@ -15,7 +15,6 @@ module.exports = function(message)
 		return;
    
 	message.from_admin = Array.isArray(this.config.admin_ids) && this.config.admin_ids.indexOf(message.author.id) != -1;
-	//if(message.from_admin) console.log(message);
 	let args = message.content.substr(this.config.prefix.length).trim().split(/ +/g);
 	let command = args.shift().toLowerCase();
 	if(typeof(this.commands[command]) == "object")
@@ -41,7 +40,6 @@ module.exports = function(message)
 			if(this.last_command.user[message.author.id] != null && ((new Date())-this.last_command.user[message.author.id]) < this.command_frequency.perUser)
 				return;
 		}
-      console.log("GM:", message.from_gm, " Admin:", message.from_admin);
 		
 		// Run the specified command using its stored function, or the default if the command is unknown.
 		if(typeof(this.commands[command].run) == "function")
