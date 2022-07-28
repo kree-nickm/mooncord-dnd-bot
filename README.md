@@ -1,10 +1,11 @@
 # Moonlight RPG Bot
-This bot is to assist members of MOONMOON's subscriber Discord with joining the various TTRPG games hosted there.
+This bot is to assist members of MOONMOON's subscriber Discord with joining the various TTRPG games hosted there. It has a handful of commands to help Discord users, and it interfaces with the Moonlight RPG web portal in order to help players and game masters find and create games.
 
 ## For Public Users
 The bot understands the following commands:
 * __`!help`__ Describes all of the bot's capabilities, some of which may not be listed here.
 * __`!r`__ Rolls dice according to the given formula. `!roll` will also work.
+
 More to come...
 
 The bot has an internal command cooldown to prevent it from being spammed.
