@@ -41,7 +41,7 @@ module.exports = function()
 	}
 	
 	// Set this here for commands that refer back to it (could move it to the config file, but it probably doesn't matter).
-	this.website = "https://www.moonlight-rpg.com/";
+	this.website = "https://moonlight-rpg.com/";
 	this.moonlightrpg.advertReactEmoji = "588481240697536512";
 	
 	// Attempt to make the server emotes easier to access (for some reason, the bot doesn't seem to be able to use many emotes, so this isn't that useful).

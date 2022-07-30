@@ -169,59 +169,34 @@ database.queryPromise = function()
 };
 
 let promiseMySQL = database.queryPromise("SELECT * FROM games WHERE `advertiseData`->'$.message'").then(results => {
+   console.log((new Date()).toUTCString(), "MySQL connection established successfully.");
    client.moonlightrpg.database = database;
-   client.moonlightrpg.advertisements = [];
+   let advertisements = [];
+   console.log((new Date()).toUTCString(), "Advertisements found:");
    for(let game of results)
    {
       let data = JSON.parse(game.advertiseData);
-      data.game = game.index;
-      data.gm = game.dm;
-      client.moonlightrpg.advertisements.push(data);
+      advertisements.push(data);
+      console.log(`    "${game.group}" | GM: ${game.dm} | Signups: ${data.signups.length}/${data.limit} | Waitlist: ${data.waitlist.length}`);
    }
-   return client.moonlightrpg.advertisements;
-});
-
-/*
-let promiseMySQL = new Promise((resolve,reject) => {
-   database.query("SELECT * FROM games WHERE `advertiseData`->'$.message'", function(err, results, fields){
-      if(err)
-         reject(err);
-      else
-      {
-         client.moonlightrpg.database = database;
-         client.moonlightrpg.advertisements = [];
-         for(let game of results)
-         {
-            let data = JSON.parse(game.advertiseData);
-            data.game = game.index;
-            data.gm = game.dm;
-            client.moonlightrpg.advertisements.push(data);
-         }
-         resolve(client.moonlightrpg.advertisements);
-      }
-   });
-});
-*/
-
-promiseMySQL.then(result => {
-   console.log((new Date()).toUTCString(), "MySQL connection established successfully. Advertisements found:");
-   for(let row of result)
-      console.log(`    "${row.title}" | GameID: ${row.game} | Signups: ${row.signups.length}/${row.limit} | Waitlist: ${row.waitlist.length}`);
-   console.log("");
+   return advertisements;
 }, err => {
    console.error((new Date()).toUTCString(), "MySQL connection failed.", err);
+   return [];
 });
 
 /******************************************************************************
 *************************** Finish Initialization *****************************
 ******************************************************************************/
 
-Promise.all([promiseLogin, promiseMySQL]).then(async result => {
-   for(let data of client.moonlightrpg.advertisements)
+Promise.all([promiseLogin, promiseMySQL]).then(async results => {
+   let num = 0;
+   for(let data of results[1])
    {
       let channel = await client.channels.fetch(data.channel);
       let message = await channel.messages.fetch(data.message);
+      num++;
       // TODO: If the message has been deleted or reactions changed while the bot was down, inform the database.
    }
-   console.log((new Date()).toUTCString(), "Existing advertisements fetched.");
+   console.log((new Date()).toUTCString(), num +" existing advertisements fetched.");
 });
