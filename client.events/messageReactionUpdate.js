@@ -8,23 +8,23 @@ module.exports = async function(action, reaction, reactUser)
       return;
    if(!reactUser.bot && reaction._emoji?.id == this.moonlightrpg.advertReactEmoji)
    {
-      //console.log((new Date()).toUTCString(), `User ${reactUser.username}#${reactUser.discriminator} reacted with ${reaction._emoji.name}.`);
+      console.log((new Date()).toUTCString(), `User ${reactUser.username}#${reactUser.discriminator} reacted with ${reaction._emoji.name}.`);
       let message = await reaction.message.fetch();
       if(message.author.id == this.user.id)
       {
-         //console.log((new Date()).toUTCString(), `User ${reactUser.username}#${reactUser.discriminator} reacted with ${reaction._emoji.name} to one of my messages (${message.id}) in channel #${message.channel.name}.`);
+         console.log((new Date()).toUTCString(), `User ${reactUser.username}#${reactUser.discriminator} reacted with ${reaction._emoji.name} to one of my messages (${message.id}) in channel #${message.channel.name}.`);
          // TODO: Any additional layer of validation would be nice. As it is, someone could spam D20 reactions on the bot and make it spam MySQL queries, which could have adverse effects on the server.
          let result = await this.moonlightrpg.database.queryPromise("SELECT * FROM `games` WHERE `advertiseData`->'$.message'=?", message.id);
          if(result.length)
          {
-            //console.log((new Date()).toUTCString(), `This message is an advertisement for the game "${result[0].group}".`);
+            console.log((new Date()).toUTCString(), `This message is an advertisement for the game "${result[0].group}".`);
             let currentAdvertiseData = JSON.parse(result[0].advertiseData);
             
             // Get the ignore list and temporarily add the GM to it.
             let ignore = [];
             if(Array.isArray(currentAdvertiseData.ignore))
                ignore = [...currentAdvertiseData.ignore];
-            //ignore.push(result[0].dm);
+            ignore.push(result[0].dm);
             
             // Is this user allowed to sign-up for this game?
             if(ignore.indexOf(reactUser.id) == -1)

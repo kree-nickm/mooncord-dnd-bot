@@ -6,7 +6,7 @@ console.log("");
 console.log("********************************************************************************");
 console.log("****************************** MoonlightRPG Bot ********************************");
 console.log("********************************************************************************");
-console.log((new Date()).toUTCString(), "Bot Startup...");
+console.log("["+(new Date()).toUTCString()+"]", "Bot Startup...");
    
 const fs = require("fs");
 var config;
@@ -16,7 +16,7 @@ if(fs.existsSync("config.json"))
 }
 else
 {
-	console.log((new Date()).toUTCString(), "config.json not found, attempting to use environment variables.");
+	console.log("["+(new Date()).toUTCString()+"]", "config.json not found, attempting to use environment variables.");
 	config = {
 		"token": process.env.token,
 		"prefix": process.env.prefix,
@@ -33,17 +33,17 @@ else
 }
 if(typeof(config) !== "object")
 {
-	console.error((new Date()).toUTCString(), "\x1b[41mFatal Error:\x1b[0m config.json is not loaded.");
+	console.error("["+(new Date()).toUTCString()+"]", "\x1b[41mFatal Error:\x1b[0m config.json is not loaded.");
 	return false;
 }
 else if(config.token == null)
 {
-	console.error((new Date()).toUTCString(), "\x1b[41mFatal Error:\x1b[0m Bot token not specified in config.json; specify the token with the 'token' property.");
+	console.error("["+(new Date()).toUTCString()+"]", "\x1b[41mFatal Error:\x1b[0m Bot token not specified in config.json; specify the token with the 'token' property.");
 	return false;
 }
 else if(config.prefix == null)
 {
-	console.error((new Date()).toUTCString(), "\x1b[41mFatal Error:\x1b[0m Prefix not specified in config.json; specify the prefix with the 'prefix' property.");
+	console.error("["+(new Date()).toUTCString()+"]", "\x1b[41mFatal Error:\x1b[0m Prefix not specified in config.json; specify the prefix with the 'prefix' property.");
 	return false;
 }
 
@@ -70,7 +70,7 @@ client.config = config;
 client.reloadEvents = () => {
 	fs.readdir("./client.events/", (err, files) => {
 		if(err)
-			return console.error((new Date()).toUTCString(), "\x1b[41mFatal Error:\x1b[0m Unable to load Discord event handlers. %s", err);
+			return console.error("["+(new Date()).toUTCString()+"]", "\x1b[41mFatal Error:\x1b[0m Unable to load Discord event handlers. %s", err);
 		files.forEach(file => {
 			if (!file.endsWith(".js"))
 				return;
@@ -79,7 +79,7 @@ client.reloadEvents = () => {
          if(typeof(event) == "function")
             client.on(eventName, event);
          else
-            console.warn((new Date()).toUTCString(), "\x1b[1mWarning:\x1b[0m Found file for \x1b[1m%s\x1b[0m event, but it does not resolve into a valid function.", eventName);
+            console.warn("["+(new Date()).toUTCString()+"]", "\x1b[1mWarning:\x1b[0m Found file for \x1b[1m%s\x1b[0m event, but it does not resolve into a valid function.", eventName);
          delete require.cache[require.resolve(`./client.events/${file}`)];
 		});
 	})
@@ -94,7 +94,7 @@ client.commands = {};
 client.reloadCmds = (dir="./client.events/message.commands", subdirs=[]) => {
 	fs.readdir(dir, {encoding:"utf8",withFileTypes:true}, (err, files) => {
 		if(err)
-			return console.error((new Date()).toUTCString(), "\x1b[41mFatal Error:\x1b[0m Unable to load message command handlers. %s", err);
+			return console.error("["+(new Date()).toUTCString()+"]", "\x1b[41mFatal Error:\x1b[0m Unable to load message command handlers. %s", err);
 		let cmdObject = client.commands;
 		subdirs.forEach(subdir => cmdObject = cmdObject[subdir]);
 		files.forEach(file => {
@@ -123,7 +123,7 @@ client.reloadCmds = (dir="./client.events/message.commands", subdirs=[]) => {
 						cmdObject[commandName] = command;
 				}
 				else
-					console.warn((new Date()).toUTCString(), "\x1b[1mWarning:\x1b[0m Found file \x1b[1m%s\x1b[0m for command, but it does not resolve into a valid command object.", `${dir}/${file.name}`);
+					console.warn("["+(new Date()).toUTCString()+"]", "\x1b[1mWarning:\x1b[0m Found file \x1b[1m%s\x1b[0m for command, but it does not resolve into a valid command object.", `${dir}/${file.name}`);
 				delete require.cache[require.resolve(`${dir}/${file.name}`)];
 			}
 			else if(file.isDirectory())
@@ -141,11 +141,14 @@ client.reloadCmds = (dir="./client.events/message.commands", subdirs=[]) => {
 client.reloadCmds();
 
 let promiseLogin = client.login(client.config.token);
-promiseLogin.then(result => console.log((new Date()).toUTCString(), "Bot successfully logged in to Discord."));
+promiseLogin.then(result => console.log("["+(new Date()).toUTCString()+"]", "Bot successfully logged in to Discord."));
 
 /******************************************************************************
 ****************************** Initialize MySQL *******************************
 ******************************************************************************/
+
+// -- Setup --
+
 const mysql = require("mysql");
 const database = mysql.createPool({
    host: config.mysql_host,
@@ -168,35 +171,177 @@ database.queryPromise = function()
    });
 };
 
-let promiseMySQL = database.queryPromise("SELECT * FROM games WHERE `advertiseData`->'$.message'").then(results => {
-   console.log((new Date()).toUTCString(), "MySQL connection established successfully.");
+// -- Init --
+
+let promiseMySQL = database.queryPromise("SELECT * FROM games WHERE `ended`=0 AND `advertiseData` NOT LIKE 'null'").then(results => {
+   console.log("["+(new Date()).toUTCString()+"]", "MySQL connection established successfully. Active games with saved advertisements:");
    client.moonlightrpg.database = database;
    let advertisements = [];
-   console.log((new Date()).toUTCString(), "Advertisements found:");
    for(let game of results)
    {
       let data = JSON.parse(game.advertiseData);
       advertisements.push(data);
-      console.log(`    "${game.group}" | GM: ${game.dm} | Signups: ${data.signups.length}/${data.limit} | Waitlist: ${data.waitlist.length}`);
+      console.log(`   GM: ${game.dm} | MessageID: ${data.message} | Signups: ${data.signups.length}/${data.limit} | Waitlist: ${data.waitlist.length} | Title: ${game.group}`);
    }
    return advertisements;
 }, err => {
-   console.error((new Date()).toUTCString(), "MySQL connection failed.", err);
+   console.error("["+(new Date()).toUTCString()+"]", "MySQL connection failed.", err);
    return [];
 });
+
+client.moonlightrpg.fixAdverts = async function(triggeringUser)
+{
+   // Get all the saved advertisements/data.
+   let gamesWithAdvertData = await database.queryPromise("SELECT * FROM games WHERE `ended`=0 AND `advertiseData` NOT LIKE 'null'");
+   for(let game of gamesWithAdvertData)
+      game.advertiseData = JSON.parse(game.advertiseData);
+   let channel = await client.channels.fetch(config.advert_channel_id);
+   let messages = await channel.messages.fetch();
+   let postedAdverts = messages.filter(m => m.author.id === client.user.id);
+   console.log(`Checking ${postedAdverts.size} posted advertisements against ${gamesWithAdvertData.length} games with advertisement data.`);
+   
+   // Find all the games that point to a nonexistent message and empty their message/signup data. Needed if a message was manually deleted.
+   let invalidMessageIds = [];
+   for(let game of gamesWithAdvertData)
+   {
+      if(game.advertiseData.message)
+      {
+         let foundMessageId = false;
+         postedAdverts.each((advert) => {
+            if(game.advertiseData.message == advert.id)
+            {
+               foundMessageId = true;
+            }
+         });
+         if(!foundMessageId)
+            invalidMessageIds.push(game);
+      }
+   }
+   for(let game of invalidMessageIds)
+   {
+      game.advertiseData.message = null;
+      game.advertiseData.signups = [];
+      game.advertiseData.waitlist = [];
+      await database.queryPromise("UPDATE games SET `advertiseData`=? WHERE `index`=?", [JSON.stringify(game.advertiseData), game.index]);
+   }
+   
+   // Find all the messages that aren't being pointed to by a game in the database. Figure out what game the message goes to and set its message pointer.
+   let gameUpdates = 0;
+   let failedUpdates = 0;
+   let reactUpdates = 0;
+   for(let kv of postedAdverts)
+   {
+      let advert = kv[1];
+      for(let game of gamesWithAdvertData)
+      {
+         if(game.advertiseData.message == advert.id)
+         {
+            advert.game = game;
+            break;
+         }
+         else if(game.group == advert.embeds?.[0]?.title)
+         {
+            advert.possibleGame = game;
+         }
+      }
+      if(!advert.game)
+      {
+         if(advert.possibleGame)
+         {
+            console.log(`No game found for message ID "${advert.id}," but it is probably "${advert.possibleGame.group}."`);
+            advert.possibleGame.advertiseData.message = advert.id;
+            await database.queryPromise("UPDATE games SET `advertiseData`=? WHERE `index`=?", [JSON.stringify(advert.possibleGame.advertiseData), advert.possibleGame.index]);
+            advert.game = advert.possibleGame;
+            gameUpdates++;
+         }
+         else
+         {
+            console.log(`No game found for message ${advert.id}.`);
+            failedUpdates++;
+         }
+      }
+      
+      if(advert.game)
+      {
+         // See if the reactions match the signups.
+         let reaction = advert.reactions.resolve(client.moonlightrpg.advertReactEmoji);
+         if(!reaction.me)
+            advert.react(client.moonlightrpg.advertReactEmoji);
+         let reactors = await reaction.users.fetch();
+         let allSignups = advert.game.advertiseData.signups.concat(advert.game.advertiseData.waitlist).concat(advert.game.advertiseData.ignore);
+         for(let kv2 of reactors)
+         {
+            let reactor = kv2[1];
+            if(reactor.id != client.user.id && reactor.id != advert.game.gm && allSignups.indexOf(reactor.id) == -1)
+            {
+               console.log(`User "${reactor.id}" has reacted but is not on the signup list. Processing their reaction now.`);
+               client.emit("messageReactionUpdate", "added", reaction, reactor);
+               reactUpdates++;
+            }
+         }
+         for(let signup of allSignups)
+         {
+            if(!reactors.get(signup))
+            {
+               console.log(`User "${signup}" is on the signup list but has no reaction. Processing their reaction removal now.`);
+               client.emit("messageReactionUpdate", "removed", reaction, await client.users.fetch(signup));
+               reactUpdates++;
+            }
+         }
+      }
+   }
+   
+   /* TODO list:
+   * Check the reactions on each message, and see if there are reactors that are not on the signups. Process their sign-up now.
+   * Check if there's people on the signup list who are no longer reacted. Process their removed sign-up now.
+   */
+   let msgs = [];
+   if(invalidMessageIds.length)
+      msgs.push(`Fixed ${invalidMessageIds.length} games with advertisement data that pointed to an invalid message.`);
+   if(gameUpdates || failedUpdates)
+      msgs.push(`Fixed ${gameUpdates} advertisements whose games did not properly track their messages.` + (failedUpdates?`${failedUpdates} failed.`:""));
+   if(reactUpdates)
+      msgs.push(`Fixed ${reactUpdates} reactions/sign-ups/cancellations that were not processed yet.`);
+   if(msgs.length)
+   {
+      console.log(msgs.join("\n"));
+      if(triggeringUser) triggeringUser.send(msgs.join("\n"));
+   }
+   else if(triggeringUser) triggeringUser.send("Nothing needed to be fixed.");
+};
 
 /******************************************************************************
 *************************** Finish Initialization *****************************
 ******************************************************************************/
 
 Promise.all([promiseLogin, promiseMySQL]).then(async results => {
+   
    let num = 0;
+   let errnum = 0;
+   let notnum = 0;
    for(let data of results[1])
    {
-      let channel = await client.channels.fetch(data.channel);
-      let message = await channel.messages.fetch(data.message);
-      num++;
-      // TODO: If the message has been deleted or reactions changed while the bot was down, inform the database.
+      if(data.channel && data.message)
+      {
+         let channel = await client.channels.fetch(data.channel);
+         let message = await channel.messages.fetch(data.message);
+         if(message?.id)
+            num++;
+         else
+            errnum++;
+      }
+      else
+         notnum++;
    }
-   console.log((new Date()).toUTCString(), num +" existing advertisements fetched.");
+   console.log("["+(new Date()).toUTCString()+"]", `${num} existing advertisements fetched.`);
+   if(errnum || notnum)
+      client.moonlightrpg.fixAdverts();
+   return results[1];
+   
+}, err => {
+   
+   console.error("["+(new Date()).toUTCString()+"]", num +" failed to connect to Discord or MySQL. Bot shutting down because it can't work now. PM2 should reboot it; better luck next time. Error:", err);
+   process.exit();
+   return null;
+
 });
