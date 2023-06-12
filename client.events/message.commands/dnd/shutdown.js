@@ -6,7 +6,7 @@ exports.run = function(message, args)
 		let steps = 0;
 		let totalSteps = 1;
 		this.destroy().then(() => {
-			console.log("Discord client terminated by admin command.");
+			console.log("["+(new Date()).toUTCString()+"]", "Discord client terminated by admin command.");
 			steps++;
 			if(steps === totalSteps)
 				process.exit();

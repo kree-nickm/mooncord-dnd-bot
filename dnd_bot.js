@@ -181,7 +181,7 @@ let promiseMySQL = database.queryPromise("SELECT * FROM games WHERE `ended`=0 AN
    {
       let data = JSON.parse(game.advertiseData);
       advertisements.push(data);
-      console.log(`   GM: ${game.dm} | MessageID: ${data.message} | Signups: ${data.signups.length}/${data.limit} | Waitlist: ${data.waitlist.length} | Title: ${game.group}`);
+      console.log("["+(new Date()).toUTCString()+"]", `   GM: ${game.dm} | MessageID: ${data.message} | Signups: ${data.signups.length}/${data.limit} | Waitlist: ${data.waitlist.length} | Title: ${game.group}`);
    }
    return advertisements;
 }, err => {
@@ -198,7 +198,7 @@ client.moonlightrpg.fixAdverts = async function(triggeringUser)
    let channel = await client.channels.fetch(config.advert_channel_id);
    let messages = await channel.messages.fetch();
    let postedAdverts = messages.filter(m => m.author.id === client.user.id);
-   console.log(`Checking ${postedAdverts.size} posted advertisements against ${gamesWithAdvertData.length} games with advertisement data.`);
+   console.log("["+(new Date()).toUTCString()+"]", `Checking ${postedAdverts.size} posted advertisements against ${gamesWithAdvertData.length} games with advertisement data.`);
    
    // Find all the games that point to a nonexistent message and empty their message/signup data. Needed if a message was manually deleted.
    let invalidMessageIds = [];
@@ -239,16 +239,20 @@ client.moonlightrpg.fixAdverts = async function(triggeringUser)
             advert.game = game;
             break;
          }
-         else if(game.group == advert.embeds?.[0]?.title)
+         else
          {
-            advert.possibleGame = game;
+            console.log("["+(new Date()).toUTCString()+"]", `Checking for possible game... Group Name: ${game.group}, Post Title: ${advert.embeds?.[0]?.title}`);
+            if(game.group == advert.embeds?.[0]?.title)
+            {
+               advert.possibleGame = game;
+            }
          }
       }
       if(!advert.game)
       {
          if(advert.possibleGame)
          {
-            console.log(`No game found for message ID "${advert.id}," but it is probably "${advert.possibleGame.group}."`);
+            console.log("["+(new Date()).toUTCString()+"]", `No game found for message ID "${advert.id}," but it is probably "${advert.possibleGame.group}."`);
             advert.possibleGame.advertiseData.message = advert.id;
             await database.queryPromise("UPDATE games SET `advertiseData`=? WHERE `index`=?", [JSON.stringify(advert.possibleGame.advertiseData), advert.possibleGame.index]);
             advert.game = advert.possibleGame;
@@ -256,7 +260,7 @@ client.moonlightrpg.fixAdverts = async function(triggeringUser)
          }
          else
          {
-            console.log(`No game found for message ${advert.id}.`);
+            console.log("["+(new Date()).toUTCString()+"]", `No game found for message ${advert.id}.`);
             failedUpdates++;
          }
       }
@@ -265,16 +269,23 @@ client.moonlightrpg.fixAdverts = async function(triggeringUser)
       {
          // See if the reactions match the signups.
          let reaction = advert.reactions.resolve(client.moonlightrpg.advertReactEmoji);
-         if(!reaction.me)
-            advert.react(client.moonlightrpg.advertReactEmoji);
-         let reactors = await reaction.users.fetch();
+         if(!reaction?.me)
+            await advert.react(client.moonlightrpg.advertReactEmoji);
+         if(!reaction)
+            reaction = advert.reactions.resolve(client.moonlightrpg.advertReactEmoji);
+         let reactors = await reaction?.users.fetch();
+         if(!reactors)
+         {
+            console.warn("["+(new Date()).toUTCString()+"]", `Could not fetch reactions on message ${advert.id}.`);
+            continue;
+         }
          let allSignups = advert.game.advertiseData.signups.concat(advert.game.advertiseData.waitlist).concat(advert.game.advertiseData.ignore);
          for(let kv2 of reactors)
          {
             let reactor = kv2[1];
             if(reactor.id != client.user.id && reactor.id != advert.game.gm && allSignups.indexOf(reactor.id) == -1)
             {
-               console.log(`User "${reactor.id}" has reacted but is not on the signup list. Processing their reaction now.`);
+               console.log("["+(new Date()).toUTCString()+"]", `User "${reactor.id}" has reacted but is not on the signup list. Processing their reaction now.`);
                client.emit("messageReactionUpdate", "added", reaction, reactor);
                reactUpdates++;
             }
@@ -283,7 +294,7 @@ client.moonlightrpg.fixAdverts = async function(triggeringUser)
          {
             if(!reactors.get(signup))
             {
-               console.log(`User "${signup}" is on the signup list but has no reaction. Processing their reaction removal now.`);
+               console.log("["+(new Date()).toUTCString()+"]", `User "${signup}" is on the signup list but has no reaction. Processing their reaction removal now.`);
                client.emit("messageReactionUpdate", "removed", reaction, await client.users.fetch(signup));
                reactUpdates++;
             }
@@ -299,12 +310,12 @@ client.moonlightrpg.fixAdverts = async function(triggeringUser)
    if(invalidMessageIds.length)
       msgs.push(`Fixed ${invalidMessageIds.length} games with advertisement data that pointed to an invalid message.`);
    if(gameUpdates || failedUpdates)
-      msgs.push(`Fixed ${gameUpdates} advertisements whose games did not properly track their messages.` + (failedUpdates?`${failedUpdates} failed.`:""));
+      msgs.push(`Fixed ${gameUpdates} advertisements whose games did not properly track their messages.` + (failedUpdates?` ${failedUpdates} failed.`:""));
    if(reactUpdates)
       msgs.push(`Fixed ${reactUpdates} reactions/sign-ups/cancellations that were not processed yet.`);
    if(msgs.length)
    {
-      console.log(msgs.join("\n"));
+      console.log("["+(new Date()).toUTCString()+"]", msgs.join("\n"));
       if(triggeringUser) triggeringUser.send(msgs.join("\n"));
    }
    else if(triggeringUser) triggeringUser.send("Nothing needed to be fixed.");

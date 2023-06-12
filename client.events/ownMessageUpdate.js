@@ -10,5 +10,5 @@ module.exports = function(message)
       content = message.content;
    else
       content = message.embeds[0].description;
-   console.log((new Date()).toUTCString(), `I just sent a message to ${to} with content:`, content);
+   console.log("["+(new Date()).toUTCString()+"]", `I just sent a message to ${to} with content:`, content);
 };
