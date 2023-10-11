@@ -57,6 +57,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.DirectMessages,
   ],
@@ -141,35 +142,35 @@ client.reloadCmds = (dir="./client.events/message.commands", subdirs=[]) => {
   if(!subdirs.length)
   {
     console.log(`[${(new Date()).toUTCString()}] Registered Chat Commands:`);
-    for(let cmd in this.commands)
+    for(let cmd in client.commands)
     {
-      if(typeof(this.commands[cmd].run) == "function")
+      if(typeof(client.commands[cmd].run) == "function")
       {
-        if(!this.commands[cmd].help?.primary || this.commands[cmd].help.primary == cmd)
+        if(!client.commands[cmd].help?.primary || client.commands[cmd].help.primary == cmd)
         {
-          console.log(`   ${this.config.prefix}${this.commands[cmd].help?.format?this.commands[cmd].help.format:cmd}   | ${this.commands[cmd].help?.short}`);
-          if(Array.isArray(this.commands[cmd].help?.aliases))
-            for(let a of this.commands[cmd].help.aliases)
-              console.log(`   ${this.config.prefix}${a}   | Alias of ${this.config.prefix}${cmd}`);
+          console.log(`   ${client.config.prefix}${client.commands[cmd].help?.format?client.commands[cmd].help.format:cmd}   | ${client.commands[cmd].help?.short}`);
+          if(Array.isArray(client.commands[cmd].help?.aliases))
+            for(let a of client.commands[cmd].help.aliases)
+              console.log(`   ${client.config.prefix}${a}   | Alias of ${client.config.prefix}${cmd}`);
         }
       }
       else
       {
-        for(let subcmd in this.commands[cmd])
+        for(let subcmd in client.commands[cmd])
         {
-          if(typeof(this.commands[cmd][subcmd].run) == "function")
+          if(typeof(client.commands[cmd][subcmd].run) == "function")
           {
-            if(!this.commands[cmd][subcmd].help?.primary || this.commands[cmd][subcmd].help.primary == subcmd)
+            if(!client.commands[cmd][subcmd].help?.primary || client.commands[cmd][subcmd].help.primary == subcmd)
             {
-              console.log(`   ${this.config.prefix}${this.commands[cmd][subcmd].help?.format?this.commands[cmd][subcmd].help.format:cmd+" "+subcmd}   | ${this.commands[cmd][subcmd].help?.short}`);
-              if(Array.isArray(this.commands[cmd][subcmd].help?.aliases))
-                for(let a of this.commands[cmd][subcmd].help.aliases)
-                  console.log(`   ${this.config.prefix}${cmd} ${a}   | Alias of ${this.config.prefix}${cmd} ${subcmd}`);
+              console.log(`   ${client.config.prefix}${client.commands[cmd][subcmd].help?.format?client.commands[cmd][subcmd].help.format:cmd+" "+subcmd}   | ${client.commands[cmd][subcmd].help?.short}`);
+              if(Array.isArray(client.commands[cmd][subcmd].help?.aliases))
+                for(let a of client.commands[cmd][subcmd].help.aliases)
+                  console.log(`   ${client.config.prefix}${cmd} ${a}   | Alias of ${client.config.prefix}${cmd} ${subcmd}`);
             }
           }
           else
           {
-            console.log(`   ${this.config.prefix}${cmd} ${subcmd} ... More parameters not shown.`);
+            console.log(`   ${client.config.prefix}${cmd} ${subcmd} ... More parameters not shown.`);
           }
         }
       }
