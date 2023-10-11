@@ -1,7 +1,7 @@
 {
 	"name": "mooncord-dnd-bot",
 	"description": "The Discord bot for Mooncord D&D games.",
-	"version": "2.0.0",
+	"version": "2.1.0",
 	"homepage": "https://github.com/kree-nickm/mooncord-dnd-bot",
 	"repository": {
 		"type": "git",
@@ -12,10 +12,9 @@
 		"start": "node dnd_bot.js"
 	},
 	"dependencies": {
-		"discord.js": "^13.8.1",
-		"mathjs": "^10.6.1",
-		"mysql": "^2.18.1",
-		"request": "^2.88.0"
+		"discord.js": "^14.13",
+		"mathjs": "^11.11.1",
+		"mysql": "^2.18.1"
 	},
 	"engines": {
 		"node": "^16.14.0"
