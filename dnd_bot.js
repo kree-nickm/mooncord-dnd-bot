@@ -9,6 +9,7 @@ console.log("*******************************************************************
 console.log("["+(new Date()).toUTCString()+"]", "Bot Startup...");
   
 const fs = require("fs");
+
 var config;
 if(fs.existsSync("config.json"))
 {
@@ -182,7 +183,7 @@ client.reloadCmds();
 const rest = new REST().setToken(client.config.token);
 client.reloadSlashCmds = async (dir="./client.events/slash.commands") => {
   // Load any data that the slash commands depend on before they are registered.
-  client.moonlightrpg.timezones = await client.moonlightrpg.database.queryPromise("SELECT * FROM util_timezones ORDER BY `offset` ASC, `name` ASC");
+  client.moonlightrpg.timezones = await client.moonlightrpg.database.query("SELECT * FROM util_timezones ORDER BY `offset` ASC, `name` ASC");
   client.moonlightrpg.timezones.forEach(tz => {
     let offset = parseFloat(tz.offset);
     let minutes = Math.round(offset) != offset;
@@ -227,44 +228,81 @@ promiseLogin.then(result => console.log("["+(new Date()).toUTCString()+"]", "Bot
 // -- Setup --
 
 const mysql = require("mysql");
-const database = mysql.createPool({
-  host: config.mysql_host,
-  user: config.mysql_user,
-  password: config.mysql_pass,
-  database: config.mysql_db,
-});
-
-database.queryPromise = function()
-{
-  let queryArgs = Array.prototype.slice.call(arguments);
-  return new Promise((resolve,reject) => {
-    queryArgs.push((err, results, fields) => {
-      if(err)
-        reject(err);
-      else
-        resolve(results);
-    });
-    this.query.apply(this, queryArgs);
-  });
-};
+const { Database } = require('./mysqlWrapper.js');
+client.moonlightrpg.database = new Database(config.mysql_host, config.mysql_user, config.mysql_pass, config.mysql_db);
 
 // -- Init --
 
-let promiseMySQL = database.queryPromise("SELECT * FROM games WHERE `ended`=0 AND `advertiseData` NOT LIKE 'null'").then(results => {
-  console.log("["+(new Date()).toUTCString()+"]", "MySQL connection established successfully. Active games with saved advertisements:");
-  client.moonlightrpg.database = database;
-  let advertisements = [];
-  for(let game of results)
+client.moonlightrpg.updateApp = async function(user, appData={}, blame=user)
+{
+  let existing = await client.moonlightrpg.database.query("SELECT *,CAST(`id` AS CHAR) AS `id` FROM dnd WHERE id=?", user.id);
+  let basicData = {
+    'id': user.id,
+    'handle': user.username,
+    'handle_noaids': user.username,
+    'avatar': user.avatar,
+    'permission': 1,
+  };
+  if(Object.keys(appData).length)
   {
-    let data = JSON.parse(game.advertiseData);
-    advertisements.push(data);
-    console.log("["+(new Date()).toUTCString()+"]", `  GM: ${game.dm} | MessageID: ${data.message} | Signups: ${data.signups.length}/${data.limit} | Waitlist: ${data.waitlist.length} | Title: ${game.group}`);
+    appData.changed = Math.round(Date.now()/1000);
+    if(!existing[0]?.submitted)
+      appData.submitted = Math.round(Date.now()/1000);
   }
-  return advertisements;
-}, err => {
-  console.error("["+(new Date()).toUTCString()+"]", "MySQL connection failed.", err);
-  return [];
-});
+  Object.assign(appData, basicData);
+  await client.moonlightrpg.database.insert("dnd", appData, ["id","permission"], blame);
+  await client.moonlightrpg.database.insert("users", basicData, ["id","permission"]);
+  return (await client.moonlightrpg.database.query("SELECT *,CAST(`id` AS CHAR) AS `id` FROM dnd WHERE id=?", user.id))[0];
+};
+
+client.moonlightrpg.appToEmbed = async function(app, isGM)
+{
+  console.log(`client.moonlightrpg.appToEmbed`, app);
+  let user = await client.users.fetch(app.id);
+  let embed = {
+    title: `Moonlight RPG Player Application`,
+    description: `For ${user}`,
+    fields: [
+      {name: `Submitted On`, value: `<t:${app.submitted}:D>`, inline:true},
+      {name: `Last Changed`, value: `<t:${app.changed}:D>`, inline:true},
+      {name: `Experience`, value: app.experience, inline:true},
+      {name: `Timezone`, value: client.moonlightrpg.timezones.find(tz => tz.index == app.timezone_id)?.label},
+      {name: `Sunday Availability`, value: app.sunday, inline:true},
+      {name: `Monday Availability`, value: app.monday, inline:true},
+      {name: `Tuesday Availability`, value: app.tuesday, inline:true},
+      {name: `Wednesday Availability`, value: app.wednesday, inline:true},
+      {name: `Thursday Availability`, value: app.thursday, inline:true},
+      {name: `Friday Availability`, value: app.friday, inline:true},
+      {name: `Saturday Availability`, value: app.saturday, inline:true},
+      {name: `Preferences`, value: app.preferences},
+      {name: `Comments`, value: app.comments},
+    ],
+  };
+  if(isGM)
+    embed.fields.push({name: `Notes`, value: app.notes});
+  return embed;
+};
+
+client.moonlightrpg.gameToEmbed = async function(game)
+{
+  let gm = await client.users.fetch(game.dm);
+  let players = Object.values(JSON.parse(game.players));
+  players = players.map(async player => player.id ? (await client.users.fetch(player.id)).toString() : player.handle);
+  players = await Promise.all(players);
+  let advertiseData = JSON.parse(game.advertiseData);
+  let embed = {
+    title: game.group,
+    description: game.notes,
+    fields: [
+      {name: `GM`, value: gm.toString(), inline:true},
+      {name: `Game Index`, value: game.index, inline:true},
+      {name: `Game System`, value: game.system, inline:true},
+      {name: `Time`, value: game.time, inline:true},
+      {name: `Players`, value: players.length?players.join('\n'):"None yet", inline:!players.length},
+    ],
+  };
+  return embed;
+};
 
 client.moonlightrpg.fixAdverts = async function(triggeringUser)
 {
@@ -274,7 +312,7 @@ client.moonlightrpg.fixAdverts = async function(triggeringUser)
     return;
   }
   // Get all the saved advertisements in MySQL.
-  let gamesWithAdvertData = await database.queryPromise("SELECT * FROM games WHERE `ended`=0 AND `advertiseData` NOT LIKE 'null'");
+  let gamesWithAdvertData = await client.moonlightrpg.database.query("SELECT * FROM games WHERE `ended`=0 AND `advertiseData` NOT LIKE 'null'");
   for(let game of gamesWithAdvertData)
     game.advertiseData = JSON.parse(game.advertiseData);
   
@@ -307,7 +345,7 @@ client.moonlightrpg.fixAdverts = async function(triggeringUser)
     game.advertiseData.message = null;
     game.advertiseData.signups = [];
     game.advertiseData.waitlist = [];
-    await database.queryPromise("UPDATE games SET `advertiseData`=? WHERE `index`=?", [JSON.stringify(game.advertiseData), game.index]);
+    await client.moonlightrpg.database.query("UPDATE games SET `advertiseData`=? WHERE `index`=?", [JSON.stringify(game.advertiseData), game.index]);
   }
   
   // Find all the messages that aren't being pointed to by a game in the database. Figure out what game the message goes to and set its message pointer.
@@ -339,7 +377,7 @@ client.moonlightrpg.fixAdverts = async function(triggeringUser)
       {
         console.log("["+(new Date()).toUTCString()+"]", `No game found for message ID "${advert.id}," but it is probably "${advert.possibleGame.group}."`);
         advert.possibleGame.advertiseData.message = advert.id;
-        await database.queryPromise("UPDATE games SET `advertiseData`=? WHERE `index`=?", [JSON.stringify(advert.possibleGame.advertiseData), advert.possibleGame.index]);
+        await client.moonlightrpg.database.query("UPDATE games SET `advertiseData`=? WHERE `index`=?", [JSON.stringify(advert.possibleGame.advertiseData), advert.possibleGame.index]);
         advert.game = advert.possibleGame;
         gameUpdates++;
       }
@@ -410,12 +448,29 @@ client.moonlightrpg.fixAdverts = async function(triggeringUser)
 *************************** Finish Initialization *****************************
 ******************************************************************************/
 
-Promise.all([promiseLogin, promiseMySQL]).then(async results => {
+Promise.all([promiseLogin, client.moonlightrpg.database.init()]).then(async results => {
+  
   client.reloadSlashCmds();
+  
+  let promiseMySQL = await client.moonlightrpg.database.query("SELECT * FROM games WHERE `ended`=0 AND `advertiseData`->'$.closed'=0").then(results => {
+    console.log("["+(new Date()).toUTCString()+"]", "MySQL connection established successfully. Active games with saved advertisements:");
+    let advertisements = [];
+    for(let game of results)
+    {
+      let data = JSON.parse(game.advertiseData);
+      advertisements.push(data);
+      console.log("["+(new Date()).toUTCString()+"]", `  GM: ${game.dm} | MessageID: ${data.message} | Signups: ${data.signups.length}/${data.limit} | Waitlist: ${data.waitlist.length} | Title: ${game.group}`);
+    }
+    return advertisements;
+  }, err => {
+    console.error("["+(new Date()).toUTCString()+"]", "MySQL connection failed.", err);
+    return [];
+  });
+  
   let num = 0;
   let errnum = 0;
   let notnum = 0;
-  for(let data of results[1])
+  for(let data of promiseMySQL)
   {
     if(data.channel && data.message)
     {
@@ -432,11 +487,11 @@ Promise.all([promiseLogin, promiseMySQL]).then(async results => {
   console.log("["+(new Date()).toUTCString()+"]", `${num} existing advertisements fetched.`);
   if(errnum || notnum)
     client.moonlightrpg.fixAdverts();
-  return results[1];
+  return promiseMySQL;
   
 }, err => {
   
-  console.error("["+(new Date()).toUTCString()+"]", num +" failed to connect to Discord or MySQL. Bot shutting down because it can't work now. PM2 should reboot it; better luck next time. Error:", err);
+  console.error("["+(new Date()).toUTCString()+"]", "Failed to connect to Discord or MySQL. Bot shutting down because it can't work now. PM2 should reboot it; better luck next time. Error:", err);
   process.exit();
   return null;
 

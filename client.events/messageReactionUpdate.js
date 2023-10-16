@@ -15,7 +15,7 @@ module.exports = async function(action, reaction, reactUser)
     {
       console.log("["+(new Date()).toUTCString()+"]", `User ${reactUserHandle} reacted with ${reaction._emoji.name} to one of my messages (${message.id}) in channel #${message.channel.name}.`);
       // TODO: Any additional layer of validation would be nice. As it is, someone could spam D20 reactions on the bot and make it spam MySQL queries, which could have adverse effects on the server.
-      let result = await this.moonlightrpg.database.queryPromise("SELECT * FROM `games` WHERE `advertiseData`->'$.message'=?", message.id);
+      let result = await this.moonlightrpg.database.query("SELECT * FROM `games` WHERE `advertiseData`->'$.message'=?", message.id);
       if(result.length)
       {
         console.log("["+(new Date()).toUTCString()+"]", `This message is an advertisement for the game "${result[0].group}".`);
@@ -57,7 +57,7 @@ module.exports = async function(action, reaction, reactUser)
           this.moonlightrpg.timers[timerid].timeout = setTimeout(async () =>
           {
             // The actual handling of adding/removing people from the sign-ups/waitlist.
-            let gameRow = (await this.moonlightrpg.database.queryPromise("SELECT * FROM `games` WHERE `advertiseData`->'$.message'=?", message.id))[0];
+            let gameRow = (await this.moonlightrpg.database.query("SELECT * FROM `games` WHERE `advertiseData`->'$.message'=?", message.id))[0];
             let advertiseData = JSON.parse(gameRow.advertiseData);
             let gameGM = await this.users.fetch(gameRow.dm);
             let gameGMHandle = gameGM.discriminator!="0" ? `${gameGM.username}#${gameGM.discriminator}` : gameGM.username;
@@ -161,7 +161,7 @@ module.exports = async function(action, reaction, reactUser)
                     fields: gmResponseFields,
                   }]});
               }
-              let playerAppResult = await this.moonlightrpg.database.queryPromise("SELECT * FROM `dnd` WHERE `id`=? AND (`submitted`>0 OR `changed`>0)", userId);
+              let playerAppResult = await this.moonlightrpg.database.query("SELECT * FROM `dnd` WHERE `id`=? AND (`submitted`>0 OR `changed`>0)", userId);
               let description = "";
               if(playerAppResult.length)
                 description = `You have successfully signed up to ${gameGMHandle}'s game, "${gameRow.group}." You have been added to a Wait List of prospective players, but the game's GM has the final say on who they add to their group and how they pick their players.`;
@@ -191,7 +191,7 @@ module.exports = async function(action, reaction, reactUser)
             }
             
             // Update the database.
-            await this.moonlightrpg.database.queryPromise("UPDATE `games` SET `advertiseData`=? WHERE `index`=?", [JSON.stringify(advertiseData), gameRow.index]);
+            await this.moonlightrpg.database.query("UPDATE `games` SET `advertiseData`=? WHERE `index`=?", [JSON.stringify(advertiseData), gameRow.index]);
             this.moonlightrpg.timers[timerid] = {
               timeout: 0,
               added: [],

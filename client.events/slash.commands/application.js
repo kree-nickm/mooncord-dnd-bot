@@ -2,115 +2,58 @@ const timeslots = ["All Day", "Most of the Day", "Afternoon", "Mid-day", "Mornin
 
 exports.run = async function(interaction)
 {
-  let isAdmin = this.config.admin_ids.reduce((acc, cur) => acc || interaction.member.id == cur, false);
-  let isGM = isAdmin || this.config.dm_role_ids.reduce((acc, cur) => acc || !!interaction.member.roles.resolve(cur), false);
+  let isAdmin = this.config.admin_ids.reduce((result, adminId) => result || interaction.member.id == adminId, false);
+  let isGM = isAdmin;
+  for(let gmRole of this.config.dm_role_ids)
+  {
+    if(isGM)
+      break;
+   isGM = isGM || Boolean(await interaction.member.roles.resolve(gmRole));
+  }
   let target = isGM ? (interaction.options.getUser("user") ?? interaction.user) : interaction.user;
   
-  let playerAppResult = await this.moonlightrpg.database.queryPromise("SELECT * FROM `dnd` WHERE `id`=?", target.id);
-  
+  let response = {};
   let mode = interaction.options.getSubcommand();
   let edit = interaction.options.getSubcommandGroup();
   if(edit)
   {
-    if(playerAppResult.length)
+    if(mode == "notes" && !isGM)
     {
-      if(mode == "notes" && !isGM)
-      {
-        interaction.reply({ content: `Only GMs can edit player notes.`, ephemeral: true });
-      }
-      else
-      {
-        // Parse the value.
-        let value;
-        if(["timezone_id","experience"].includes(mode))
-          value = interaction.options.getInteger("value");
-        else
-          value = interaction.options.getString("value");
-        
-        if(playerAppResult?.[0]?.[mode] == value)
-        {
-          interaction.reply({ content: `${target}'s '${mode}' is already '${value}'`, ephemeral: true });
-        }
-        else
-        {
-          // Update the application table.
-          let mysqlData = {
-            id: target.id,
-            [mode]: value,
-            changed: Math.round(Date.now()/1000),
-          };
-          let updateClause = Object.keys(mysqlData).map(key => this.moonlightrpg.database.escapeId(key)).map(key => `${key}=VALUES(${key})`).join(",");
-          let queryResult = await this.moonlightrpg.database.queryPromise("INSERT INTO dnd SET ? ON DUPLICATE KEY UPDATE " + updateClause, [mysqlData]);
-          
-          // Update the changelog table.
-          let blame;
-          if(target == interaction.user)
-          {
-            blame = String(playerAppResult[0].index);
-          }
-          else
-          {
-            let myAppResult = await this.moonlightrpg.database.queryPromise("SELECT `index` FROM `dnd` WHERE `id`=?", interaction.user.id);
-            if(myAppResult.length)
-              blame = String(myAppResult[0].index);
-            else
-              blame = interaction.user.id;
-          }
-          delete mysqlData.id;
-          let changeData = {
-            table: "dnd",
-            timestamp: Math.round(Date.now()/1000),
-            data: JSON.stringify({[playerAppResult[0].index]:mysqlData}),
-            previous: JSON.stringify({[playerAppResult[0].index]:{changed:playerAppResult[0].changed, [mode]:playerAppResult[0][mode]}}),
-            blame,
-          };
-          let logResult = await this.moonlightrpg.database.queryPromise("INSERT INTO changelog SET ?", [changeData]);
-          
-          // Reply.
-          interaction.reply({ content: `${target}'s '${mode}' is now '${value}'`, ephemeral: true });
-        }
-      }
+      response = { content: `Only GMs can edit player notes.`, ephemeral: true };
     }
     else
-      interaction.reply({ content: `No application found for ${target}. In order to edit fields on this application, one must first be created on the website: ${this.website}`, ephemeral: true });
+    {
+      // Parse the value.
+      let value;
+      if(["timezone_id","experience"].includes(mode))
+        value = interaction.options.getInteger("value");
+      else
+        value = interaction.options.getString("value");
+      
+      // Make sure the user running the command has an app.
+      await this.moonlightrpg.updateApp(interaction.user);
+      
+      // Update the application table.
+      let app = await this.moonlightrpg.updateApp(target, {[mode]: value}, interaction.user);
+      response = { content: `${target}'s '${mode}' is now '${app[mode]}' Updated application below:`, embeds: [await this.moonlightrpg.appToEmbed(app, isGM)], ephemeral: true };
+    }
   }
   else
   {
-    if(playerAppResult.length)
+    let app = (await this.moonlightrpg.database.query("SELECT *,CAST(`id` AS CHAR) AS `id` FROM `dnd` WHERE `id`=?", target.id))[0];
+    if(app)
     {
-      let message = {
-        embeds: [
-          {
-            title: `Moonlight RPG Player Application`,
-            description: `For ${target}`,
-            fields: [
-              {name: `Submitted On`, value: `<t:${playerAppResult[0].submitted}:D>`, inline:true},
-              {name: `Last Changed`, value: `<t:${playerAppResult[0].changed}:D>`, inline:true},
-              {name: `Experience`, value: playerAppResult[0].experience, inline:true},
-              {name: `Timezone`, value: this.moonlightrpg.timezones.find(tz => tz.index == playerAppResult[0].timezone_id)?.label},
-              {name: `Sunday Availability`, value: playerAppResult[0].sunday, inline:true},
-              {name: `Monday Availability`, value: playerAppResult[0].monday, inline:true},
-              {name: `Tuesday Availability`, value: playerAppResult[0].tuesday, inline:true},
-              {name: `Wednesday Availability`, value: playerAppResult[0].wednesday, inline:true},
-              {name: `Thursday Availability`, value: playerAppResult[0].thursday, inline:true},
-              {name: `Friday Availability`, value: playerAppResult[0].friday, inline:true},
-              {name: `Saturday Availability`, value: playerAppResult[0].saturday, inline:true},
-              {name: `Preferences`, value: playerAppResult[0].preferences},
-              {name: `Comments`, value: playerAppResult[0].comments},
-            ],
-          },
-        ],
-        ephemeral: true,
-      };
-      if(isGM)
-        message.embeds[0].fields.push({name: `Notes`, value: playerAppResult[0].notes});
-      interaction.reply(message);
+      response = { embeds: [await this.moonlightrpg.appToEmbed(app, isGM)], ephemeral: true };
     }
     else
     {
-      interaction.reply({ content: `No application found for ${target}.`, ephemeral: true });
+      response = { content: `No application found for ${target}.`, ephemeral: true };
     }
   }
+  if(!interaction.replied)
+    await interaction.reply(response);
+  else
+    console.warn(`Already replied to /application interaction.`);
   
   return true;
 };
