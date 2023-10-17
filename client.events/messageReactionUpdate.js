@@ -50,7 +50,7 @@ module.exports = async function(action, reaction, reactUser)
           else
           {
             // Final check to make sure they are allowed to sign up.
-            let app = await this.moonlightrpg.database.query(`SELECT * FROM dnd WHERE id=?`, reactUser.id);
+            let app = (await this.moonlightrpg.database.query(`SELECT * FROM dnd WHERE id=?`, reactUser.id))[0];
             app = await this.moonlightrpg.loadApp(app);
             if(app.active.length)
             {
