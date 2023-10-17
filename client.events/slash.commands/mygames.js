@@ -1,16 +1,7 @@
 exports.run = async function(interaction)
 {
-  let isAdmin = this.config.admin_ids.reduce((result, adminId) => result || interaction.member.id == adminId, false);
-  let isGM = isAdmin;
-  for(let gmRole of this.config.dm_role_ids)
-  {
-    if(isGM)
-      break;
-   isGM = isGM || Boolean(await interaction.member.roles.resolve(gmRole));
-  }
-  
   let response = {};
-  if(isGM)
+  if(interaction.fromGM)
   {
     let games = await this.moonlightrpg.database.query("SELECT * FROM games WHERE dm=? AND ended=0", interaction.user.id);
     if(games.length)

@@ -2,22 +2,14 @@ const timeslots = ["All Day", "Most of the Day", "Afternoon", "Mid-day", "Mornin
 
 exports.run = async function(interaction)
 {
-  let isAdmin = this.config.admin_ids.reduce((result, adminId) => result || interaction.member.id == adminId, false);
-  let isGM = isAdmin;
-  for(let gmRole of this.config.dm_role_ids)
-  {
-    if(isGM)
-      break;
-   isGM = isGM || Boolean(await interaction.member.roles.resolve(gmRole));
-  }
-  let target = isGM ? (interaction.options.getUser("user") ?? interaction.user) : interaction.user;
+  let target = interaction.fromGM ? (interaction.options.getUser("user") ?? interaction.user) : interaction.user;
   
   let response = {};
   let mode = interaction.options.getSubcommand();
   let edit = interaction.options.getSubcommandGroup();
   if(edit)
   {
-    if(mode == "notes" && !isGM)
+    if(mode == "notes" && !interaction.fromGM)
     {
       response = { content: `Only GMs can edit player notes.`, ephemeral: true };
     }
@@ -35,7 +27,7 @@ exports.run = async function(interaction)
       
       // Update the application table.
       let app = await this.moonlightrpg.updateApp(target, {[mode]: value}, interaction.user);
-      response = { content: `${target}'s '${mode}' is now '${app[mode]}' Updated application below:`, embeds: [await this.moonlightrpg.appToEmbed(app, isGM)], ephemeral: true };
+      response = { content: `${target}'s '${mode}' is now '${app[mode]}' Updated application below:`, embeds: [await this.moonlightrpg.appToEmbed(app, interaction.fromGM)], ephemeral: true };
     }
   }
   else
@@ -43,7 +35,7 @@ exports.run = async function(interaction)
     let app = (await this.moonlightrpg.database.query("SELECT *,CAST(`id` AS CHAR) AS `id` FROM `dnd` WHERE `id`=?", target.id))[0];
     if(app)
     {
-      response = { embeds: [await this.moonlightrpg.appToEmbed(app, isGM)], ephemeral: true };
+      response = { embeds: [await this.moonlightrpg.appToEmbed(app, interaction.fromGM)], ephemeral: true };
     }
     else
     {

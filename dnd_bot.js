@@ -257,7 +257,6 @@ client.moonlightrpg.updateApp = async function(user, appData={}, blame=user)
 
 client.moonlightrpg.appToEmbed = async function(app, isGM)
 {
-  console.log(`client.moonlightrpg.appToEmbed`, app);
   let user = await client.users.fetch(app.id);
   let embed = {
     title: `Moonlight RPG Player Application`,
@@ -280,6 +279,38 @@ client.moonlightrpg.appToEmbed = async function(app, isGM)
   };
   if(isGM)
     embed.fields.push({name: `Notes`, value: app.notes});
+  let games = await client.moonlightrpg.database.query(`SELECT * FROM games WHERE dm=? OR players LIKE ?`, [user.id, `%"${user.id??user.handle}"%`]);
+  let active = [];
+  let activeGM = [];
+  let previous = [];
+  let previousGM = [];
+  for(let game of games)
+  {
+    if(game.dm == user.id)
+    {
+      if(game.ended)
+        previousGM.push(game);
+      else
+        activeGM.push(game);
+    }
+    else
+    {
+      game.gm = await client.users.fetch(game.dm);
+      let players = Object.values(JSON.parse(game.players));
+      let player = players?.find(p => p.id == user.id || p.handle == user.handle);
+      if(player)
+      {
+        if(game.ended || player.removed)
+          previous.push(game);
+        else
+          active.push(game);
+      }
+    }
+  }
+  embed.fields.push({name: `Active in ${active.length} game(s)`, value: active.length ? active.map(game => `${game.gm}: ${game.group} (${game.system})`).join('\n') : ""});
+  embed.fields.push({name: `Played in ${previous.length} past game(s)`, value: previous.length ? previous.map(game => `${game.gm}: ${game.group} (${game.system})`).join('\n') : ""});
+  embed.fields.push({name: `GMing ${activeGM.length} game(s)`, value: activeGM.length ? activeGM.map(game => `${game.group} (${game.system})`).join('\n') : ""});
+  embed.fields.push({name: `GMed ${previousGM.length} past game(s)`, value: previousGM.length ? previousGM.map(game => `${game.group} (${game.system})`).join('\n') : ""});
   return embed;
 };
 
@@ -287,6 +318,7 @@ client.moonlightrpg.gameToEmbed = async function(game)
 {
   let gm = await client.users.fetch(game.dm);
   let players = Object.values(JSON.parse(game.players));
+  players = players.filter(player => !player.removed);
   players = players.map(async player => player.id ? (await client.users.fetch(player.id)).toString() : player.handle);
   players = await Promise.all(players);
   let advertiseData = JSON.parse(game.advertiseData);
