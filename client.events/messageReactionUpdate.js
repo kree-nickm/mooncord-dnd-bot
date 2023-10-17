@@ -50,7 +50,7 @@ module.exports = async function(action, reaction, reactUser)
           else
           {
             // Final check to make sure they are allowed to sign up.
-            let app = (await this.moonlightrpg.database.query(`SELECT * FROM dnd WHERE id=?`, reactUser.id))[0];
+            /*let app = (await this.moonlightrpg.database.query(`SELECT * FROM dnd WHERE id=?`, reactUser.id))[0];
             app = await this.moonlightrpg.loadApp(app);
             if(app.active.length)
             {
@@ -67,8 +67,8 @@ module.exports = async function(action, reaction, reactUser)
                   content: `You have signed up for multiple games. That's fine, but if you are selected to play in both of them, you will have to choose just one, because we have a rule against a player being in multiple games outside of extenuating circumstances.`,
                 });
               }
+            }*/
               this.moonlightrpg.timers[timerid][action].push(reactUser.id);
-            }
           }
           
           // Either way, restart the timer.
