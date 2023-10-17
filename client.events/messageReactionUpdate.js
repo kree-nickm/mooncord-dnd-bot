@@ -49,7 +49,26 @@ module.exports = async function(action, reaction, reactUser)
           }
           else
           {
-            this.moonlightrpg.timers[timerid][action].push(reactUser.id);
+            // Final check to make sure they are allowed to sign up.
+            let app = await this.moonlightrpg.database.query(`SELECT * FROM dnd WHERE id=?`, reactUser.id)
+            app = await this.moonlightrpg.loadApp(app);
+            if(app.active.length)
+            {
+              await reactUser.send({
+                content: `You have attempted to sign up for a TTRPG game, however you are listed as already playing in an active game. We have a rule against a player being in multiple games outside of extenuating circumstances. If you believe there is an error, contact your most recent GM or any TTRPG Community Leader.`,
+              });
+              await reaction.users.remove(reactUser);
+            }
+            else
+            {
+              if(app.signedup.length)
+              {
+                await reactUser.send({
+                  content: `You have signed up for multiple games. That's fine, but if you are selected to play in both of them, you will have to choose just one, because we have a rule against a player being in multiple games outside of extenuating circumstances.`,
+                });
+              }
+              this.moonlightrpg.timers[timerid][action].push(reactUser.id);
+            }
           }
           
           // Either way, restart the timer.
@@ -198,6 +217,10 @@ module.exports = async function(action, reaction, reactUser)
               removed: [],
             };
           }, this.config.signup_delay);
+        }
+        else
+        {
+          // Player was on ignore list.
         }
       }
     }

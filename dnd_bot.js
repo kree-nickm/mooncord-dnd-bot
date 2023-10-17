@@ -215,7 +215,8 @@ client.reloadSlashCmds = async (dir="./client.events/slash.commands") => {
       }
   }
   let data = await rest.put(Routes.applicationGuildCommands(client.config.id, client.config.guild_id), { body: commandRegistry });
-  console.log(`[${(new Date()).toUTCString()}] Registered Slash Commands:`, data);
+  console.log(`[${(new Date()).toUTCString()}] Registered Slash Commands:`);
+  console.log(data.map(cmd => `\t/${cmd.name} (${cmd.options?.length??0})`).join('\n'));
 };
 
 let promiseLogin = client.login(client.config.token);
@@ -235,7 +236,6 @@ client.moonlightrpg.database = new Database(config.mysql_host, config.mysql_user
 
 client.moonlightrpg.updateApp = async function(user, appData={}, blame=user)
 {
-  let existing = await client.moonlightrpg.database.query("SELECT *,CAST(`id` AS CHAR) AS `id` FROM dnd WHERE id=?", user.id);
   let basicData = {
     'id': user.id,
     'handle': user.username,
@@ -246,21 +246,57 @@ client.moonlightrpg.updateApp = async function(user, appData={}, blame=user)
   if(Object.keys(appData).length)
   {
     appData.changed = Math.round(Date.now()/1000);
-    if(!existing[0]?.submitted)
-      appData.submitted = Math.round(Date.now()/1000);
+    appData.submitted = Math.round(Date.now()/1000);
   }
   Object.assign(appData, basicData);
-  await client.moonlightrpg.database.insert("dnd", appData, ["id","permission"], blame);
-  await client.moonlightrpg.database.insert("users", basicData, ["id","permission"]);
+  await client.moonlightrpg.database.insert("dnd", appData, ["id","permission","submitted"], blame);
+  await client.moonlightrpg.database.insert("users", basicData, ["id","permission","submitted"]);
   return (await client.moonlightrpg.database.query("SELECT *,CAST(`id` AS CHAR) AS `id` FROM dnd WHERE id=?", user.id))[0];
 };
 
+client.moonlightrpg.loadApp = async function(app)
+{
+  app.user = app.user ?? await client.users.fetch(app.id);
+  let games = await client.moonlightrpg.database.query(`SELECT * FROM games WHERE dm=? OR players LIKE ? OR advertiseData LIKE ?`, [app.user.id, `%"${app.user.id??app.user.handle}"%`, `%"${app.user.id??app.user.handle}"%`]);
+  app.active = [];
+  app.activeGM = [];
+  app.previous = [];
+  app.previousGM = [];
+  app.signedup = [];
+  for(let game of games)
+  {
+    if(game.dm == app.user.id)
+    {
+      if(game.ended)
+        app.previousGM.push(game);
+      else
+        app.activeGM.push(game);
+    }
+    else
+    {
+      game.gmUser = await client.users.fetch(game.dm);
+      let players = Object.values(JSON.parse(game.players));
+      let player = players?.find(p => p.id == app.user.id || p.handle == app.user.handle);
+      if(player)
+      {
+        if(game.ended || player.removed)
+          app.previous.push(game);
+        else
+          app.active.push(game);
+      }
+      else
+        app.signedup.push(game);
+    }
+  }
+  return app;
+}
+
 client.moonlightrpg.appToEmbed = async function(app, isGM)
 {
-  let user = await client.users.fetch(app.id);
+  app = await client.moonlightrpg.loadApp(app);
   let embed = {
     title: `Moonlight RPG Player Application`,
-    description: `For ${user}`,
+    description: `For ${app.user}`,
     fields: [
       {name: `Submitted On`, value: `<t:${app.submitted}:D>`, inline:true},
       {name: `Last Changed`, value: `<t:${app.changed}:D>`, inline:true},
@@ -279,58 +315,40 @@ client.moonlightrpg.appToEmbed = async function(app, isGM)
   };
   if(isGM)
     embed.fields.push({name: `Notes`, value: app.notes});
-  let games = await client.moonlightrpg.database.query(`SELECT * FROM games WHERE dm=? OR players LIKE ?`, [user.id, `%"${user.id??user.handle}"%`]);
-  let active = [];
-  let activeGM = [];
-  let previous = [];
-  let previousGM = [];
-  for(let game of games)
-  {
-    if(game.dm == user.id)
-    {
-      if(game.ended)
-        previousGM.push(game);
-      else
-        activeGM.push(game);
-    }
-    else
-    {
-      game.gm = await client.users.fetch(game.dm);
-      let players = Object.values(JSON.parse(game.players));
-      let player = players?.find(p => p.id == user.id || p.handle == user.handle);
-      if(player)
-      {
-        if(game.ended || player.removed)
-          previous.push(game);
-        else
-          active.push(game);
-      }
-    }
-  }
-  embed.fields.push({name: `Active in ${active.length} game(s)`, value: active.length ? active.map(game => `${game.gm}: ${game.group} (${game.system})`).join('\n') : ""});
-  embed.fields.push({name: `Played in ${previous.length} past game(s)`, value: previous.length ? previous.map(game => `${game.gm}: ${game.group} (${game.system})`).join('\n') : ""});
-  embed.fields.push({name: `GMing ${activeGM.length} game(s)`, value: activeGM.length ? activeGM.map(game => `${game.group} (${game.system})`).join('\n') : ""});
-  embed.fields.push({name: `GMed ${previousGM.length} past game(s)`, value: previousGM.length ? previousGM.map(game => `${game.group} (${game.system})`).join('\n') : ""});
+  embed.fields.push({name: `Active in ${app.active.length} game(s)`, value: app.active.length ? app.active.map(game => `${game.gmUser}: ${game.group} (${game.system})`).join('\n') : ""});
+  embed.fields.push({name: `Played in ${app.previous.length} past game(s)`, value: app.previous.length ? app.previous.map(game => `${game.gmUser}: ${game.group} (${game.system})`).join('\n') : ""});
+  embed.fields.push({name: `GMing ${app.activeGM.length} game(s)`, value: app.activeGM.length ? app.activeGM.map(game => `${game.group} (${game.system})`).join('\n') : ""});
+  embed.fields.push({name: `GMed ${app.previousGM.length} past game(s)`, value: app.previousGM.length ? app.previousGM.map(game => `${game.group} (${game.system})`).join('\n') : ""});
+  embed.fields.push({name: `Signed-up for ${app.signedup.length} game(s)`, value: app.signedup.length ? app.signedup.map(game => `${game.gmUser}: ${game.group}`).join('\n') : ""});
   return embed;
+};
+
+client.moonlightrpg.loadGame = async function(game)
+{
+  game.gmUser = game.gmUser ?? await client.users.fetch(game.dm);
+  game.players = typeof(game.players) != "object" ? Object.values(JSON.parse(game.players)) : game.players;
+  game.activePlayers = game.players.filter(player => !player.removed);
+  game.activePlayers = game.activePlayers.map(async player => player.id ? (await client.users.fetch(player.id)).toString() : player.handle);
+  game.activePlayers = await Promise.all(game.activePlayers);
+  game.removedPlayers = game.players.filter(player => player.removed);
+  game.removedPlayers = game.removedPlayers.map(async player => player.id ? (await client.users.fetch(player.id)).toString() : player.handle);
+  game.removedPlayers = await Promise.all(game.removedPlayers);
+  game.advertiseData = typeof(game.advertiseData) != "object" ? JSON.parse(game.advertiseData) : game.advertiseData;
+  return game;
 };
 
 client.moonlightrpg.gameToEmbed = async function(game)
 {
-  let gm = await client.users.fetch(game.dm);
-  let players = Object.values(JSON.parse(game.players));
-  players = players.filter(player => !player.removed);
-  players = players.map(async player => player.id ? (await client.users.fetch(player.id)).toString() : player.handle);
-  players = await Promise.all(players);
-  let advertiseData = JSON.parse(game.advertiseData);
+  game = await client.moonlightrpg.loadGame(game);
   let embed = {
     title: game.group,
     description: game.notes,
     fields: [
-      {name: `GM`, value: gm.toString(), inline:true},
+      {name: `GM`, value: game.gmUser.toString(), inline:true},
       {name: `Game Index`, value: game.index, inline:true},
       {name: `Game System`, value: game.system, inline:true},
       {name: `Time`, value: game.time, inline:true},
-      {name: `Players`, value: players.length?players.join('\n'):"None yet", inline:!players.length},
+      {name: `Players`, value: game.players.length?game.players.join('\n'):"None yet", inline:!game.players.length},
     ],
   };
   return embed;
