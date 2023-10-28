@@ -2,7 +2,14 @@ const timeslots = ["All Day", "Most of the Day", "Afternoon", "Mid-day", "Mornin
 
 exports.run = async function(interaction)
 {
-  let target = interaction.fromGM ? (interaction.options.getUser("user") ?? interaction.user) : interaction.user;
+  let t = interaction.options.getUser("user");
+  let target = interaction.fromGM ? (t ?? interaction.user) : interaction.user;
+  if(!interaction.fromGM && t && t != interaction.user)
+  {
+    await interaction.reply({ content: `Only GMs can access another user's application.`, ephemeral: true });
+    return false;
+  }
+  await interaction.deferReply({ ephemeral: true });
   
   let response = {};
   let mode = interaction.options.getSubcommand();
@@ -23,7 +30,7 @@ exports.run = async function(interaction)
         value = interaction.options.getString("value");
       
       // Make sure the user running the command has an app.
-      await this.moonlightrpg.updateApp(interaction.user);
+      await this.moonlightrpg.updateApp(interaction.user, undefined, undefined, false);
       
       // Update the application table.
       let app = await this.moonlightrpg.updateApp(target, {[mode]: value}, interaction.user);
@@ -32,7 +39,7 @@ exports.run = async function(interaction)
   }
   else
   {
-    let app = (await this.moonlightrpg.database.query("SELECT *,CAST(`id` AS CHAR) AS `id` FROM `dnd` WHERE `id`=?", target.id))[0];
+    let app = await this.moonlightrpg.getApp(target);
     if(app)
     {
       response = { embeds: [await this.moonlightrpg.appToEmbed(app, interaction.fromGM)], ephemeral: true };
@@ -42,10 +49,7 @@ exports.run = async function(interaction)
       response = { content: `No application found for ${target}.`, ephemeral: true };
     }
   }
-  if(!interaction.replied)
-    await interaction.reply(response);
-  else
-    console.warn(`Already replied to /application interaction.`);
+  await interaction.followUp(response);
   
   return true;
 };

@@ -219,6 +219,28 @@ client.reloadSlashCmds = async (dir="./client.events/slash.commands") => {
   console.log(data.map(cmd => `\t/${cmd.name} (${cmd.options?.length??0})`).join('\n'));
 };
 
+client.reloadCustomInteractions = (dir="./client.events/custom.interactions") => {
+  client.customInteractions = {};
+  let files = fs.readdirSync(dir, {encoding:"utf8",withFileTypes:true});
+  for(let file of files)
+  {
+    if(file.isFile() && file.name.endsWith(".js"))
+    {
+      let command = require(`${dir}/${file.name}`);
+      let commandName = file.name.split(".")[0];
+      if(commandName != "" && command !== null && typeof(command) === "object" && typeof(command.run) === "function")
+      {
+        client.customInteractions[commandName] = command;
+      }
+      else
+        console.warn("["+(new Date()).toUTCString()+"]", "\x1b[1mWarning:\x1b[0m Found file \x1b[1m%s\x1b[0m for slash command, but it does not resolve into a valid command object.", `${dir}/${file.name}`);
+      delete require.cache[require.resolve(`${dir}/${file.name}`)];
+    }
+  }
+  console.log(`[${(new Date()).toUTCString()}] Loaded Custom Interactions: `, Object.keys(client.customInteractions).join(", ") );
+};
+client.reloadCustomInteractions();
+
 let promiseLogin = client.login(client.config.token);
 promiseLogin.then(result => console.log("["+(new Date()).toUTCString()+"]", "Bot successfully logged in to Discord."));
 
@@ -234,7 +256,7 @@ client.moonlightrpg.database = new Database(config.mysql_host, config.mysql_user
 
 // -- Init --
 
-client.moonlightrpg.updateApp = async function(user, appData={}, blame=user)
+client.moonlightrpg.updateApp = async function(user, appData={}, blame=user, returnAfter=true)
 {
   let basicData = {
     'id': user.id,
@@ -249,9 +271,26 @@ client.moonlightrpg.updateApp = async function(user, appData={}, blame=user)
     appData.submitted = Math.round(Date.now()/1000);
   }
   Object.assign(appData, basicData);
-  await client.moonlightrpg.database.insert("dnd", appData, ["id","permission","submitted"], blame);
+  let result = await client.moonlightrpg.database.insert("dnd", appData, ["id","permission","submitted"], blame);
   await client.moonlightrpg.database.insert("users", basicData, ["id","permission","submitted"]);
-  return (await client.moonlightrpg.database.query("SELECT *,CAST(`id` AS CHAR) AS `id` FROM dnd WHERE id=?", user.id))[0];
+  if(returnAfter)
+    return await client.moonlightrpg.getApp(user);
+  else
+    return result;
+};
+
+client.moonlightrpg.getApp = async function(user)
+{
+  let apps = await client.moonlightrpg.database.query("SELECT *,CAST(`id` AS CHAR) AS `id` FROM `dnd` WHERE `id`=?", user.id);
+  if(Array.isArray(apps))
+  {
+    return apps[0];
+  }
+  else
+  {
+    console.warn(`Error getting app for ${user}.`);
+    return null;
+  }
 };
 
 client.moonlightrpg.loadApp = async function(app)
@@ -289,7 +328,7 @@ client.moonlightrpg.loadApp = async function(app)
     }
   }
   return app;
-}
+};
 
 client.moonlightrpg.appToEmbed = async function(app, isGM)
 {
@@ -393,8 +432,6 @@ client.moonlightrpg.fixAdverts = async function(triggeringUser)
   for(let game of invalidMessageIds)
   {
     game.advertiseData.message = null;
-    game.advertiseData.signups = [];
-    game.advertiseData.waitlist = [];
     await client.moonlightrpg.database.query("UPDATE games SET `advertiseData`=? WHERE `index`=?", [JSON.stringify(game.advertiseData), game.index]);
   }
   

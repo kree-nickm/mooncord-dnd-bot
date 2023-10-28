@@ -8,24 +8,30 @@ module.exports = async function(action, reaction, reactUser)
     return;
   if(!reactUser.bot && reaction._emoji?.id == this.moonlightrpg.advertReactEmoji)
   {
-    let reactUserHandle = reactUser.discriminator!="0" ? `${reactUser.username}#${reactUser.discriminator}` : reactUser.username;
-    console.log("["+(new Date()).toUTCString()+"]", `User ${reactUserHandle} reacted with ${reaction._emoji.name}.`);
+    // This is a moon2D20 reaction that isn't the bot's.
+    console.log("["+(new Date()).toUTCString()+"]", `User ${reactUser.username} reacted with ${reaction._emoji.name}.`);
     let message = await reaction.message.fetch();
     if(message.author.id == this.user.id)
     {
-      console.log("["+(new Date()).toUTCString()+"]", `User ${reactUserHandle} reacted with ${reaction._emoji.name} to one of my messages (${message.id}) in channel #${message.channel.name}.`);
+      // This is a message posted by the bot.
+      console.log("["+(new Date()).toUTCString()+"]", `User ${reactUser.username} reacted with ${reaction._emoji.name} to one of my messages (${message.id}) in channel #${message.channel.name}.`);
       // TODO: Any additional layer of validation would be nice. As it is, someone could spam D20 reactions on the bot and make it spam MySQL queries, which could have adverse effects on the server.
       let result = await this.moonlightrpg.database.query("SELECT * FROM `games` WHERE `advertiseData`->'$.message'=?", message.id);
       if(result.length)
       {
+        // This is a reaction on a game advert.
         console.log("["+(new Date()).toUTCString()+"]", `This message is an advertisement for the game "${result[0].group}".`);
         let currentAdvertiseData = JSON.parse(result[0].advertiseData);
         
-        // Get the ignore list and temporarily add the GM to it.
+        // Check for admin status to enable debugging.
+        reaction.fromAdmin = this.config.admin_ids.reduce((result, adminId) => result || reactUser.id == adminId, false);
+        
+        // Get the ignore list and temporarily add the GM to it. (Unless it's an admin; assume they are debugging.)
         let ignore = [];
         if(Array.isArray(currentAdvertiseData.ignore))
           ignore = [...currentAdvertiseData.ignore];
-        ignore.push(result[0].dm);
+        if(!reaction.fromAdmin)
+          ignore.push(result[0].dm);
         
         // Is this user allowed to sign-up for this game?
         if(ignore.indexOf(reactUser.id) == -1)
@@ -50,7 +56,7 @@ module.exports = async function(action, reaction, reactUser)
           else
           {
             // Final check to make sure they are allowed to sign up.
-            /*let app = (await this.moonlightrpg.database.query(`SELECT * FROM dnd WHERE id=?`, reactUser.id))[0];
+            /*let app = await this.moonlightrpg.getApp(user);
             app = await this.moonlightrpg.loadApp(app);
             if(app.active.length)
             {
@@ -67,19 +73,25 @@ module.exports = async function(action, reaction, reactUser)
                   content: `You have signed up for multiple games. That's fine, but if you are selected to play in both of them, you will have to choose just one, because we have a rule against a player being in multiple games outside of extenuating circumstances.`,
                 });
               }
-            }*/
               this.moonlightrpg.timers[timerid][action].push(reactUser.id);
+            }*/
+            
+            // If bypassing the multi-game check.
+            this.moonlightrpg.timers[timerid][action].push(reactUser.id);
           }
           
           // Either way, restart the timer.
           clearTimeout(this.moonlightrpg.timers[timerid].timeout);
+          
+          /*************************************************
+          ** This is the actual handling of the reaction. **
+          **  Everything before this is just validation.  **
+          *************************************************/
           this.moonlightrpg.timers[timerid].timeout = setTimeout(async () =>
           {
-            // The actual handling of adding/removing people from the sign-ups/waitlist.
             let gameRow = (await this.moonlightrpg.database.query("SELECT * FROM `games` WHERE `advertiseData`->'$.message'=?", message.id))[0];
             let advertiseData = JSON.parse(gameRow.advertiseData);
             let gameGM = await this.users.fetch(gameRow.dm);
-            let gameGMHandle = gameGM.discriminator!="0" ? `${gameGM.username}#${gameGM.discriminator}` : gameGM.username;
             let sendOneGMMessage = false;
             let gmResponseFields = [
               {name: "Game Name", value: `${gameRow.group}`},
@@ -93,16 +105,15 @@ module.exports = async function(action, reaction, reactUser)
             for(let userId of this.moonlightrpg.timers[timerid].removed)
             {
               let user = await this.users.fetch(userId);
-              let userHandle = user.discriminator!="0" ? `${user.username}#${user.discriminator}` : user.username;
               let i;
               if((i = advertiseData.signups.indexOf(userId)) != -1)
               {
                 advertiseData.signups.splice(i, 1);
-                gmMessageRemoved.push(`${userHandle}`);
+                gmMessageRemoved.push(`${user.username}`);
                 if(!sendOneGMMessage)
-                  gameGM.send({embeds:[{
+                  await gameGM.send({embeds:[{
                     title: "Sign-ups Changed",
-                    description: `A player, ${userHandle}, has removed themselves from the sign-ups for your game, "${gameRow.group}."`,
+                    description: `A player, ${user.username}, has removed themselves from the sign-ups for your game, "${gameRow.group}."`,
                     fields: gmResponseFields,
                   }]});
                 if(advertiseData.signups.length < advertiseData.limit)
@@ -114,14 +125,13 @@ module.exports = async function(action, reaction, reactUser)
                     {
                       let movedUserId = advertiseData.waitlist.splice(k, 1)[0];
                       let movedUser = await this.users.fetch(movedUserId);
-                      let movedUserHandle = movedUser.discriminator!="0" ? `${movedUser.username}#${movedUser.discriminator}` : movedUser.username;
                       advertiseData.signups.push(movedUserId);
-                      gmMessageAdded.push(`${movedUserHandle}`);
+                      gmMessageAdded.push(`${movedUser.username}`);
                       // Note: The below message is defined twice. The second time is in the "reaction added: section.
                       if(!sendOneGMMessage)
-                        gameGM.send({embeds:[{
+                        await gameGM.send({embeds:[{
                           title: "Sign-ups Changed",
-                          description: `A new player, ${userHandle}, has been added to the sign-ups for your game, "${gameRow.group}." Player was previously on the waitlist. You can check the advertisement here: ${this.website}manage`,
+                          description: `A new player, ${user.username}, has been added to the sign-ups for your game, "${gameRow.group}." Player was previously on the waitlist. You can check the advertisement here: ${this.website}manage`,
                           fields: gmResponseFields,
                         }]});
                     }
@@ -131,20 +141,20 @@ module.exports = async function(action, reaction, reactUser)
               else if((i = advertiseData.waitlist.indexOf(userId)) != -1)
               {
                 advertiseData.waitlist.splice(i, 1);
-                gmMessageRemoved.push(`${userHandle}`);
+                gmMessageRemoved.push(`${user.username}`);
                 if(!sendOneGMMessage)
-                  gameGM.send({embeds:[{
+                  await gameGM.send({embeds:[{
                     title: "Sign-ups Changed",
-                    description: `A player, ${userHandle}, has removed themselves from the waitlist for your game, "${gameRow.group}."`,
+                    description: `A player, ${user.username}, has removed themselves from the waitlist for your game, "${gameRow.group}."`,
                     fields: gmResponseFields,
                   }]});
               }
               if(i != -1)
-                user.send({embeds:[{
+                await user.send({embeds:[{
                   title: "Sign-up Removal Confirmation",
-                  description: `You have successfully removed yourself from ${gameGMHandle}'s game, "${gameRow.group}."`,
+                  description: `You have successfully removed yourself from ${gameGM.username}'s game, "${gameRow.group}."`,
                   fields: [
-                    {name: "Game Master", value: `${gameGMHandle}`},
+                    {name: "Game Master", value: `${gameGM.username}`},
                     {name: "Game Name", value: `${gameRow.group}`},
                   ]
                 }]});
@@ -156,15 +166,16 @@ module.exports = async function(action, reaction, reactUser)
               if(advertiseData.signups.indexOf(userId) != -1 || advertiseData.waitlist.indexOf(userId) != -1)
                 continue;
               let user = await this.users.fetch(userId);
-              let userHandle = user.discriminator!="0" ? `${user.username}#${user.discriminator}` : user.username;
+              
+              // Add them to the sign-ups or wait list as needed, then queue the GM notification.
               if(advertiseData.signups.length < advertiseData.limit)
               {
                 advertiseData.signups.push(userId);
-                gmMessageAdded.push(`${userHandle}`);
+                gmMessageAdded.push(`${user.username}`);
                 if(!sendOneGMMessage)
-                  gameGM.send({embeds:[{
+                  await gameGM.send({embeds:[{
                     title: "Sign-ups Changed",
-                    description: `A new player, ${userHandle}, has been added to the sign-ups for your game, "${gameRow.group}." You can check the advertisement here: ${this.website}manage`,
+                    description: `A new player, ${user.username}, has been added to the sign-ups for your game, "${gameRow.group}." You can check the advertisement here: ${this.website}manage`,
                     fields: gmResponseFields,
                   }]});
               }
@@ -172,29 +183,74 @@ module.exports = async function(action, reaction, reactUser)
               {
                 advertiseData.waitlist.push(userId);
                 // Newly added waitlist notification.
-                gmMessageAdded.push(`${userHandle}`);
+                gmMessageAdded.push(`${user.username}`);
                 if(!sendOneGMMessage)
-                  gameGM.send({embeds:[{
+                  await gameGM.send({embeds:[{
                     title: "Waitlist Changed",
-                    description: `A new player, ${userHandle}, has been added to the waitlist for your game, "${gameRow.group}." You can check the advertisement here: ${this.website}manage`,
+                    description: `A new player, ${user.username}, has been added to the waitlist for your game, "${gameRow.group}." You can check the advertisement here: ${this.website}manage`,
                     fields: gmResponseFields,
                   }]});
               }
-              let playerAppResult = await this.moonlightrpg.database.query("SELECT * FROM `dnd` WHERE `id`=? AND (`submitted`>0 OR `changed`>0)", userId);
-              let description = "";
-              if(playerAppResult.length)
-                description = `You have successfully signed up to ${gameGMHandle}'s game, "${gameRow.group}." You have been added to a Wait List of prospective players, but the game's GM has the final say on who they add to their group and how they pick their players.`;
-              else
-                description = `Hey, you signed up to ${gameGMHandle}'s game, but you don't have a Moonlight RPG player application. You have been added to a Wait List of prospective players, but you will need to fill out a player application before being added to the group to receive a Moonlight Player role. Filling out a player application does not guarantee you a spot in the game or affect your odds of being chosen by the game's GM. You can fill out an application here: ${this.website}.`;
-              user.send({embeds:[{
+              
+              // Send the player a confirmation based on whether they have an app or not.
+              let playerAppResult = await this.moonlightrpg.database.query("SELECT *,CAST(`id` AS CHAR) AS `id` FROM `dnd` WHERE `id`=? AND (`submitted`>0 OR `changed`>0)", userId);
+              let userMsg = {embeds:[{
                 title: "Sign-up Confirmation",
-                description,
                 fields: [
-                  {name: "Game Master", value: `${gameGMHandle}`},
+                  {name: "Game Master", value: `${gameGM.username}`},
                   {name: "Game Name", value: `${gameRow.group}`},
                 ]
-              }]});
+              }]};
+              if(gameGM == user)
+                userMsg.content = `This is a debugging message because you are signing up for your own game.`;
+              if(playerAppResult.length || gameGM == user)
+              {
+                userMsg.embeds[0].description = `You have successfully signed up to ${gameGM.username}'s game, "${gameRow.group}." You have been added to a Wait List of prospective players, but the game's GM has the final say on who they add to their group and how they pick their players.`;
+                await user.send(userMsg);
+              }
+              if(!playerAppResult.length || gameGM == user)
+              {
+                userMsg.embeds[0].description = `Hey, you signed up to ${gameGM.username}'s game, but you don't have a Moonlight RPG player application. You have been added to a Wait List of prospective players, but you will need to fill out a player application before being added to the group to receive a Moonlight Player role. You can use the fields below to fill out some of the application. Otherwise, you can fill out a full application here: ${this.website}.`;
+                userMsg.components = [
+                  {
+                    "type": 1,
+                    "components": [
+                      {
+                        "type": 3,
+                        "custom_id": "applicationExperience",
+                        "options": [
+                          {"label":"1 (No experience)", "value":"1"},
+                          {"label":"2", "value":"2"},
+                          {"label":"3", "value":"3"},
+                          {"label":"4", "value":"4"},
+                          {"label":"5", "value":"5"},
+                          {"label":"6", "value":"6"},
+                          {"label":"7", "value":"7"},
+                          {"label":"8", "value":"8"},
+                          {"label":"9", "value":"9"},
+                          {"label":"10", "value":"10"},
+                        ],
+                        "placeholder": "TTRPG Experience Level",
+                      },
+                    ],
+                  },
+                  {
+                    "type": 1,
+                    "components": [
+                      {
+                        "type": 2,
+                        "custom_id": "applicationModal",
+                        "label": "Click For More Fields",
+                        "style": 1,
+                      },
+                    ],
+                  },
+                ];
+                await user.send(userMsg);
+              }
             }
+            
+            // If the GM notifications are being collected into a single message, do it here.
             if(sendOneGMMessage)
             {
               if(gmMessageRemoved.length)
@@ -202,7 +258,7 @@ module.exports = async function(action, reaction, reactUser)
               if(gmMessageAdded.length)
                 gmResponseFields.unshift({name: "New Players", value: gmMessageAdded.join("\n")});
               if(gmMessageRemoved.length || gmMessageAdded.length)
-                gameGM.send({embeds:[{
+                await gameGM.send({embeds:[{
                   title: "Sign-ups Changed",
                   description: `New players have reacted (or unreacted) to your game advertisement message.`,
                   fields: gmResponseFields,
@@ -217,6 +273,9 @@ module.exports = async function(action, reaction, reactUser)
               removed: [],
             };
           }, this.config.signup_delay);
+          /******************************
+          ** End of reaction handling. **
+          ******************************/
         }
         else
         {
