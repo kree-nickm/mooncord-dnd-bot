@@ -150,14 +150,20 @@ module.exports = async function(action, reaction, reactUser)
                   }]});
               }
               if(i != -1)
-                await user.send({embeds:[{
+              {
+                let userMsg = {embeds:[{
                   title: "Sign-up Removal Confirmation",
                   description: `You have successfully removed yourself from ${gameGM.username}'s game, "${gameRow.group}."`,
                   fields: [
                     {name: "Game Master", value: `${gameGM.username}`},
                     {name: "Game Name", value: `${gameRow.group}`},
                   ]
-                }]});
+                }]};
+                try { await user.send(userMsg); }
+                catch(x) {
+                  console.error("["+(new Date()).toUTCString()+"]", `Could not send confirmation (react removed) message to "${user.username}":`, userMsg, x);
+                }
+              }
             }
             
             // Add players who added their reaction.
@@ -206,7 +212,11 @@ module.exports = async function(action, reaction, reactUser)
               if(playerAppResult.length || gameGM == user)
               {
                 userMsg.embeds[0].description = `You have successfully signed up to ${gameGM.username}'s game, "${gameRow.group}." You have been added to a Wait List of prospective players, but the game's GM has the final say on who they add to their group and how they pick their players.`;
-                await user.send(userMsg);
+                try { await user.send(userMsg); }
+                catch(x) {
+                  console.error("["+(new Date()).toUTCString()+"]", `Could not send confirmation (react added; with app) message to "${user.username}":`, userMsg, x);
+                  await gameGM.send({content:`An unknown error occurred when trying to send a confirmation message to ${user} (${user.username}). You'll have to confirm with them to let them know that you received their sign-up and/or ask them to fill out an application. Also mention in game masters chat that you got this message, so the devs can try to figure out what went wrong.`});
+                }
               }
               if(!playerAppResult.length || gameGM == user)
               {
@@ -246,7 +256,11 @@ module.exports = async function(action, reaction, reactUser)
                     ],
                   },
                 ];
-                await user.send(userMsg);
+                try { await user.send(userMsg); }
+                catch(x) {
+                  console.error("["+(new Date()).toUTCString()+"]", `Could not send confirmation (react added; no app) message to "${user.username}":`, userMsg, x);
+                  await gameGM.send({content:`An unknown error occurred when trying to send a confirmation message to ${user} (${user.username}). You'll have to confirm with them to let them know that you received their sign-up and/or ask them to fill out an application. Also mention in game masters chat that you got this message, so the devs can try to figure out what went wrong.`});
+                }
               }
             }
             
