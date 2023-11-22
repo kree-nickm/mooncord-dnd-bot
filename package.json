@@ -12,7 +12,7 @@
 		"start": "node dnd_bot.js"
 	},
 	"dependencies": {
-		"discord.js": "^14.13",
+		"discord.js": "^14.14",
 		"mathjs": "^11.11.1",
 		"mysql": "^2.18.1"
 	},
