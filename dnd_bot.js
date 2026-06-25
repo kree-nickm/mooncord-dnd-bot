@@ -339,21 +339,21 @@ client.moonlightrpg.appToEmbed = async function(app, isGM)
     fields: [
       {name: `Submitted On`, value: `<t:${app.submitted}:D>`, inline:true},
       {name: `Last Changed`, value: `<t:${app.changed}:D>`, inline:true},
-      {name: `Experience`, value: app.experience, inline:true},
-      {name: `Timezone`, value: client.moonlightrpg.timezones.find(tz => tz.index == app.timezone_id)?.label},
-      {name: `Sunday Availability`, value: app.sunday, inline:true},
-      {name: `Monday Availability`, value: app.monday, inline:true},
-      {name: `Tuesday Availability`, value: app.tuesday, inline:true},
-      {name: `Wednesday Availability`, value: app.wednesday, inline:true},
-      {name: `Thursday Availability`, value: app.thursday, inline:true},
-      {name: `Friday Availability`, value: app.friday, inline:true},
-      {name: `Saturday Availability`, value: app.saturday, inline:true},
-      {name: `Preferences`, value: app.preferences},
-      {name: `Comments`, value: app.comments},
+      {name: `Experience`, value: app.experience??'?', inline:true},
+      {name: `Timezone`, value: client.moonlightrpg.timezones.find(tz => tz.index == app.timezone_id)?.label??'?'},
+      {name: `Sunday Availability`, value: app.sunday??'?', inline:true},
+      {name: `Monday Availability`, value: app.monday??'?', inline:true},
+      {name: `Tuesday Availability`, value: app.tuesday??'?', inline:true},
+      {name: `Wednesday Availability`, value: app.wednesday??'?', inline:true},
+      {name: `Thursday Availability`, value: app.thursday??'?', inline:true},
+      {name: `Friday Availability`, value: app.friday??'?', inline:true},
+      {name: `Saturday Availability`, value: app.saturday??'?', inline:true},
+      {name: `Preferences`, value: app.preferences??'?'},
+      {name: `Comments`, value: app.comments??'?'},
     ],
   };
   if(isGM)
-    embed.fields.push({name: `Notes`, value: app.notes});
+    embed.fields.push({name: `Notes`, value: app.notes??'?'});
   embed.fields.push({name: `Active in ${app.active.length} game(s)`, value: app.active.length ? app.active.map(game => `${game.gmUser}: ${game.group} (${game.system})`).join('\n') : ""});
   embed.fields.push({name: `Played in ${app.previous.length} past game(s)`, value: app.previous.length ? app.previous.map(game => `${game.gmUser}: ${game.group} (${game.system})`).join('\n') : ""});
   embed.fields.push({name: `GMing ${app.activeGM.length} game(s)`, value: app.activeGM.length ? app.activeGM.map(game => `${game.group} (${game.system})`).join('\n') : ""});
@@ -380,13 +380,13 @@ client.moonlightrpg.gameToEmbed = async function(game)
 {
   game = await client.moonlightrpg.loadGame(game);
   let embed = {
-    title: game.group,
-    description: game.notes,
+    title: game.group??'?',
+    description: game.notes??'?',
     fields: [
-      {name: `GM`, value: game.gmUser.toString(), inline:true},
-      {name: `Game Index`, value: game.index, inline:true},
-      {name: `Game System`, value: game.system, inline:true},
-      {name: `Time`, value: game.time, inline:true},
+      {name: `GM`, value: game.gmUser?.toString()??'?', inline:true},
+      {name: `Game Index`, value: game.index??'?', inline:true},
+      {name: `Game System`, value: game.system??'?', inline:true},
+      {name: `Time`, value: game.time??'?', inline:true},
       {name: `Players`, value: game.players.length?game.players.join('\n'):"None yet", inline:!game.players.length},
     ],
   };
