@@ -23,9 +23,9 @@ else
     "token": process.env.token,
     "prefix": process.env.prefix,
     "guild_id": process.env.guild_id,
-    "channel_ids": process.env.channel_ids.split(","),
-    "admin_ids": process.env.admin_ids.split(","),
-    "dm_role_ids": process.env.dm_role_ids.split(","),
+    "channel_ids": process.env.channel_ids?.split(","),
+    "admin_ids": process.env.admin_ids?.split(","),
+    "dm_role_ids": process.env.dm_role_ids?.split(","),
     "signup_delay": process.env.signup_delay,
     "advert_channel_id": process.env.advert_channel_id,
     "mysql_host": process.env.mysql_host,
@@ -36,17 +36,20 @@ else
 }
 if(typeof(config) !== "object")
 {
-  console.error("["+(new Date()).toUTCString()+"]", "\x1b[41mFatal Error:\x1b[0m config.json is not loaded.");
+  console.error("["+(new Date()).toUTCString()+"]", "\x1b[41mFatal Error:\x1b[0m config is not loaded.");
+  process.exit(1);
   return false;
 }
 else if(config.token == null)
 {
-  console.error("["+(new Date()).toUTCString()+"]", "\x1b[41mFatal Error:\x1b[0m Bot token not specified in config.json; specify the token with the 'token' property.");
+  console.error("["+(new Date()).toUTCString()+"]", "\x1b[41mFatal Error:\x1b[0m Bot token not specified in config; specify the token with the 'token' property.");
+  process.exit(1);
   return false;
 }
 else if(config.prefix == null)
 {
-  console.error("["+(new Date()).toUTCString()+"]", "\x1b[41mFatal Error:\x1b[0m Prefix not specified in config.json; specify the prefix with the 'prefix' property.");
+  console.error("["+(new Date()).toUTCString()+"]", "\x1b[41mFatal Error:\x1b[0m Prefix not specified in config; specify the prefix with the 'prefix' property.");
+  process.exit(1);
   return false;
 }
 
@@ -579,7 +582,7 @@ Promise.all([promiseLogin, client.moonlightrpg.database.init()]).then(async resu
 }, err => {
   
   console.error("["+(new Date()).toUTCString()+"]", "Failed to connect to Discord or MySQL. Bot shutting down because it can't work now. PM2 should reboot it; better luck next time. Error:", err);
-  process.exit();
+  process.exit(2);
   return null;
 
 });
